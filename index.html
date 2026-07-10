@@ -863,6 +863,14 @@ tbody tr:hover{background:var(--primary-light);transform:scale(1.005)}
 .user-menu .um-item.danger:hover{background:#fde0de;color:var(--red)}
 [data-theme="dark"] .user-menu .um-item.danger:hover{background:#3a161640;color:#ff6b63}
 .user-menu .um-item .umi{font-size:1.1rem;width:22px;text-align:center}
+/* تبويبات التقارير */
+.rep-tab{
+  padding:10px 20px;border:none;background:transparent;color:var(--text-soft);
+  font-family:inherit;font-size:.9rem;cursor:pointer;border-bottom:3px solid transparent;
+  margin-bottom:-2px;transition:color .2s,border-color .2s;font-weight:600;
+}
+.rep-tab:hover{color:var(--primary)}
+.rep-tab.active{color:var(--primary);border-bottom-color:var(--primary)}
 #menuBackdrop{position:fixed;inset:0;z-index:250;display:none}
 #menuBackdrop.show{display:block}
 
@@ -1173,44 +1181,88 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
           <h1>التقارير ومؤشرات الأداء</h1>
           <p>تحليل شامل لأداء الطلبات والخدمات</p>
         </div>
-        <button class="btn btn-primary" onclick="printFullReport()">📊 تصدير التقرير الشامل</button>
-        <button class="btn btn-ghost" onclick="aiReportSummary()" style="margin-right:8px">🤖 ملخص ذكي</button>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-ghost" onclick="aiReportSummary()">🤖 ملخص ذكي</button>
+          <button class="btn btn-primary" onclick="printFullReport()">📊 تصدير التقرير الشامل</button>
+          <button class="btn btn-primary" id="exportCsvBtn" onclick="exportReportCSV()" style="background:var(--green)">📥 تصدير Excel</button>
+        </div>
       </div>
       <div id="aiSummaryContainer" style="display:none;margin-bottom:20px"></div>
-      <div class="kpi-grid" id="reportKpis"></div>
 
-      <!-- منحنى السنين -->
-      <div class="panel">
-        <div class="panel-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-          <h2>📈 منحنى الطلبات عبر الزمن</h2>
-          <select id="timeChartMode" onchange="renderTimeChart()" style="padding:8px 14px;border:1px solid var(--border);border-radius:10px;background:var(--bg2);color:var(--text);font-family:inherit;font-size:.86rem">
-            <option value="month">شهري</option>
-            <option value="year" selected>سنوي</option>
-          </select>
-        </div>
-        <div style="padding:22px" id="timeChart"></div>
+      <!-- تبويبات التقارير -->
+      <div style="display:flex;gap:8px;margin-bottom:22px;border-bottom:2px solid var(--border);padding-bottom:0">
+        <button class="rep-tab active" id="rtab-overview" onclick="switchRepTab('overview')">📊 نظرة عامة</button>
+        <button class="rep-tab" id="rtab-financial" onclick="switchRepTab('financial')">💰 مالي</button>
+        <button class="rep-tab" id="rtab-performance" onclick="switchRepTab('performance')">⚡ الأداء</button>
+        <button class="rep-tab" id="rtab-myreport" onclick="switchRepTab('myreport')">👤 تقريري الشخصي</button>
       </div>
 
-      <!-- صف لوحات المعلومات -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:20px;margin-bottom:22px">
-        <div class="panel">
-          <div class="panel-head"><h2>الطلبات حسب الخدمة</h2></div>
-          <div style="padding:22px" id="chartByService"></div>
+      <!-- ══════════ تبويب 1: نظرة عامة ══════════ -->
+      <div id="rep-overview">
+        <div class="kpi-grid" id="reportKpis"></div>
+        <div class="panel" style="margin-bottom:22px">
+          <div class="panel-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+            <h2>📈 منحنى الطلبات عبر الزمن</h2>
+            <select id="timeChartMode" onchange="renderTimeChart()" style="padding:8px 14px;border:1px solid var(--border);border-radius:10px;background:var(--bg2);color:var(--text);font-family:inherit;font-size:.86rem">
+              <option value="month">شهري</option>
+              <option value="year" selected>سنوي</option>
+            </select>
+          </div>
+          <div style="padding:22px" id="timeChart"></div>
         </div>
-        <div class="panel">
-          <div class="panel-head"><h2>الطلبات حسب الحالة</h2></div>
-          <div style="padding:22px" id="chartByStatus"></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:20px;margin-bottom:22px">
+          <div class="panel"><div class="panel-head"><h2>الطلبات حسب الخدمة</h2></div><div style="padding:22px" id="chartByService"></div></div>
+          <div class="panel"><div class="panel-head"><h2>الطلبات حسب الحالة</h2></div><div style="padding:22px" id="chartByStatus"></div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:20px;margin-bottom:22px">
+          <div class="panel"><div class="panel-head"><h2>أعلى الدول حسب عدد الطلبات</h2></div><div style="padding:22px" id="chartByCountry"></div></div>
+          <div class="panel"><div class="panel-head"><h2>الطلبات حسب الشركة</h2></div><div style="padding:22px" id="chartByCompany"></div></div>
         </div>
       </div>
 
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:20px;margin-bottom:22px">
-        <div class="panel">
-          <div class="panel-head"><h2>أعلى الدول حسب عدد الطلبات</h2></div>
-          <div style="padding:22px" id="chartByCountry"></div>
+      <!-- ══════════ تبويب 2: مالي ══════════ -->
+      <div id="rep-financial" style="display:none">
+        <div class="kpi-grid" id="finKpis" style="margin-bottom:22px"></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:20px;margin-bottom:22px">
+          <div class="panel"><div class="panel-head"><h2>💰 المبالغ المصروفة حسب الخدمة</h2></div><div style="padding:22px" id="chartAmtService"></div></div>
+          <div class="panel"><div class="panel-head"><h2>🏢 المبالغ حسب الشركة</h2></div><div style="padding:22px" id="chartAmtCompany"></div></div>
         </div>
-        <div class="panel">
-          <div class="panel-head"><h2>الطلبات حسب الشركة</h2></div>
-          <div style="padding:22px" id="chartByCompany"></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:20px;margin-bottom:22px">
+          <div class="panel"><div class="panel-head"><h2>🏛️ المبالغ حسب الجهة الداعمة</h2></div><div style="padding:22px" id="chartAmtEntity"></div></div>
+          <div class="panel"><div class="panel-head"><h2>📅 المبالغ الشهرية (آخر 12 شهر)</h2></div><div style="padding:22px" id="chartAmtMonthly"></div></div>
+        </div>
+        <div class="panel" style="margin-bottom:22px">
+          <div class="panel-head"><h2>📋 جدول الطلبات المصروفة</h2></div>
+          <div style="padding:16px;overflow-x:auto" id="disbursedTable"></div>
+        </div>
+      </div>
+
+      <!-- ══════════ تبويب 3: الأداء ══════════ -->
+      <div id="rep-performance" style="display:none">
+        <div class="kpi-grid" id="perfKpis" style="margin-bottom:22px"></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:20px;margin-bottom:22px">
+          <div class="panel"><div class="panel-head"><h2>⏱️ متوسط وقت المعالجة حسب الخدمة (يوم)</h2></div><div style="padding:22px" id="chartAvgTime"></div></div>
+          <div class="panel"><div class="panel-head"><h2>✅ نسبة الموافقة والرفض</h2></div><div style="padding:22px" id="chartApproval"></div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:20px;margin-bottom:22px">
+          <div class="panel"><div class="panel-head"><h2>🔴 الطلبات المتأخرة (أكثر من 30 يوم بدون قرار)</h2></div><div style="padding:16px;overflow-x:auto" id="delayedTable"></div></div>
+          <div class="panel"><div class="panel-head"><h2>📊 معدل التحويل (مقدّم → مصروف)</h2></div><div style="padding:22px" id="chartConversion"></div></div>
+        </div>
+      </div>
+
+      <!-- ══════════ تبويب 4: تقريري الشخصي ══════════ -->
+      <div id="rep-myreport" style="display:none">
+        <div class="kpi-grid" id="myKpis" style="margin-bottom:22px"></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:20px;margin-bottom:22px">
+          <div class="panel"><div class="panel-head"><h2>📋 طلباتي حسب الخدمة</h2></div><div style="padding:22px" id="myChartService"></div></div>
+          <div class="panel"><div class="panel-head"><h2>🔄 حالات طلباتي</h2></div><div style="padding:22px" id="myChartStatus"></div></div>
+        </div>
+        <div class="panel" style="margin-bottom:22px">
+          <div class="panel-head" style="display:flex;justify-content:space-between;align-items:center">
+            <h2>📑 سجل طلباتي الكامل</h2>
+            <button class="btn btn-primary" onclick="exportMyReportCSV()" style="font-size:.82rem;padding:7px 14px">📥 تصدير</button>
+          </div>
+          <div style="padding:16px;overflow-x:auto" id="myRequestsTable"></div>
         </div>
       </div>
     </section>
@@ -3251,6 +3303,281 @@ function renderReports(){
   drawBarChart("chartByStatus",groupCount(r=>(STATUS_MAP[r.status]||STATUS_MAP.submitted).label),"حالة");
   drawBarChart("chartByCountry",topCount(r=>r.country,8),"دولة");
   drawBarChart("chartByCompany",groupCount(r=>(r.fields&&r.fields.company)||r.company||"-"),"شركة");
+  // تبويب مالي
+  renderFinancialTab();
+  // تبويب الأداء
+  renderPerformanceTab();
+  // تبويب شخصي
+  renderMyReportTab();
+  // إخفاء تصدير Excel للمستخدمين العاديين
+  const eb=document.getElementById("exportCsvBtn");
+  if(eb) eb.style.display=STATE.role==="admin"||STATE.role==="reviewer"?"":"none";
+}
+
+/* ══════════ تبديل التبويبات ══════════ */
+function switchRepTab(tab){
+  ["overview","financial","performance","myreport"].forEach(t=>{
+    document.getElementById("rep-"+t).style.display=t===tab?"block":"none";
+    const btn=document.getElementById("rtab-"+t);
+    if(btn) btn.classList.toggle("active",t===tab);
+  });
+  // إخفاء التبويبين الأدمن عن المستخدم العادي
+  const isAdmin=STATE.role==="admin"||STATE.role==="reviewer";
+  ["financial","performance"].forEach(t=>{
+    const b=document.getElementById("rtab-"+t);
+    if(b) b.style.display=isAdmin?"":"none";
+  });
+}
+
+/* ══════════ التبويب المالي ══════════ */
+function renderFinancialTab(){
+  const all=STATE.requests;
+  const disbursed=all.filter(r=>r.status==="disbursed");
+  const totalAmt=disbursed.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  const avgAmt=disbursed.length?totalAmt/disbursed.length:0;
+  const maxAmt=disbursed.length?Math.max(...disbursed.map(r=>parseFloat(r.amount)||0)):0;
+
+  // KPIs مالية
+  const fk=document.getElementById("finKpis");
+  if(fk) fk.innerHTML=[
+    {ic:"💰",l:"إجمالي المبالغ المصروفة",v:fmtNum(totalAmt)+" ﷼",s:disbursed.length+" طلب مصروف"},
+    {ic:"📊",l:"متوسط المبلغ لكل طلب",v:fmtNum(Math.round(avgAmt))+" ﷼",s:"من الطلبات المصروفة"},
+    {ic:"🏆",l:"أعلى مبلغ مصروف",v:fmtNum(maxAmt)+" ﷼",s:"طلب واحد"},
+    {ic:"📋",l:"الطلبات قيد المعالجة",v:all.filter(r=>r.status!=="disbursed"&&r.status!=="rejected").length,s:"بانتظار القرار"},
+  ].map(k=>`<div class="kpi-card"><div class="kpi-ic">${k.ic}</div><div class="kpi-val">${k.v}</div><div class="kpi-lbl">${k.l}</div><div style="font-size:.75rem;color:var(--text-soft);margin-top:4px">${k.s}</div></div>`).join("");
+
+  // مخططات مالية
+  drawAmtChart("chartAmtService", groupAmt(disbursed,r=>r.serviceName));
+  drawAmtChart("chartAmtCompany", groupAmt(disbursed,r=>(r.fields&&r.fields.company)||r.company||"-"));
+  drawAmtChart("chartAmtEntity",  groupAmt(disbursed,r=>(r.fields&&r.fields.supporting_entity)||"غير محدد"));
+
+  // مخطط شهري آخر 12 شهر
+  const monthly={};
+  disbursed.forEach(r=>{
+    const m=(r.date||"").substring(0,7);
+    if(m){monthly[m]=(monthly[m]||0)+(parseFloat(r.amount)||0);}
+  });
+  const keys=Object.keys(monthly).sort().slice(-12);
+  const mData={};
+  keys.forEach(k=>mData[k]=monthly[k]);
+  drawAmtChart("chartAmtMonthly",mData,"ر.س");
+
+  // جدول الطلبات المصروفة
+  const dt=document.getElementById("disbursedTable");
+  if(dt){
+    if(!disbursed.length){dt.innerHTML=`<div class="empty"><p>لا توجد طلبات مصروفة</p></div>`;return;}
+    dt.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:.85rem">
+      <thead><tr style="background:var(--bg2)">
+        ${["رقم الطلب","الخدمة","الشركة","الدولة","المبلغ","التاريخ"].map(h=>`<th style="padding:10px;text-align:right;border-bottom:1px solid var(--border)">${h}</th>`).join("")}
+      </tr></thead>
+      <tbody>${disbursed.map(r=>`<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:9px;font-weight:700;color:var(--primary)">${r.reqNum||"-"}</td>
+        <td style="padding:9px">${r.serviceName||"-"}</td>
+        <td style="padding:9px">${(r.fields&&r.fields.company)||r.company||"-"}</td>
+        <td style="padding:9px">${r.country||"-"}</td>
+        <td style="padding:9px;color:var(--green);font-weight:700">${fmtNum(parseFloat(r.amount)||0)} ﷼</td>
+        <td style="padding:9px">${r.date||"-"}</td>
+      </tr>`).join("")}</tbody>
+    </table>`;
+  }
+}
+
+/* ══════════ التبويب الأداء ══════════ */
+function renderPerformanceTab(){
+  const all=STATE.requests;
+  const total=all.length;
+  const disbursed=all.filter(r=>r.status==="disbursed").length;
+  const rejected=all.filter(r=>r.status==="rejected").length;
+  const pending=total-disbursed-rejected;
+  const approvalRate=total?Math.round(disbursed/total*100):0;
+
+  // حساب متوسط وقت المعالجة
+  const processed=all.filter(r=>r.status==="disbursed"&&r.date&&r.endDate);
+  const avgDays=processed.length?Math.round(processed.reduce((s,r)=>{
+    const d1=new Date(r.date),d2=new Date(r.endDate);
+    return s+(isNaN(d1)||isNaN(d2)?0:(d2-d1)/(1000*60*60*24));
+  },0)/processed.length):"-";
+
+  // الطلبات المتأخرة (أكثر من 30 يوم بحالة قيد المعالجة)
+  const now=new Date();
+  const delayed=all.filter(r=>{
+    if(r.status==="disbursed"||r.status==="rejected") return false;
+    const d=new Date(r.date||"");
+    return !isNaN(d)&&(now-d)/(1000*60*60*24)>30;
+  });
+
+  // KPIs أداء
+  const pk=document.getElementById("perfKpis");
+  if(pk) pk.innerHTML=[
+    {ic:"✅",l:"نسبة الموافقة",v:approvalRate+"%",s:disbursed+" طلب مصروف"},
+    {ic:"⏱️",l:"متوسط وقت المعالجة",v:avgDays+(avgDays!=="-"?" يوم":""),s:"من التقديم للصرف"},
+    {ic:"🔴",l:"طلبات متأخرة",v:delayed.length,s:"أكثر من 30 يوم بدون قرار"},
+    {ic:"📊",l:"معدل التحويل",v:total?Math.round(disbursed/total*100)+"%":"-",s:"مقدّم → مصروف"},
+  ].map(k=>`<div class="kpi-card"><div class="kpi-ic">${k.ic}</div><div class="kpi-val">${k.v}</div><div class="kpi-lbl">${k.l}</div><div style="font-size:.75rem;color:var(--text-soft);margin-top:4px">${k.s}</div></div>`).join("");
+
+  // متوسط الوقت حسب الخدمة
+  const byService={};
+  processed.forEach(r=>{
+    const svc=r.serviceName||"أخرى";
+    const d1=new Date(r.date),d2=new Date(r.endDate);
+    const days=(d2-d1)/(1000*60*60*24);
+    if(!byService[svc]) byService[svc]={sum:0,n:0};
+    byService[svc].sum+=days; byService[svc].n++;
+  });
+  const avgBySvc={};
+  Object.entries(byService).forEach(([k,v])=>avgBySvc[k]=Math.round(v.sum/v.n));
+  drawAmtChart("chartAvgTime",avgBySvc,"يوم");
+
+  // نسبة الموافقة والرفض
+  drawBarChart("chartApproval",{"مصروف":disbursed,"قيد المعالجة":pending,"مرفوض":rejected},"");
+
+  // معدل التحويل حسب الخدمة
+  const convData={};
+  all.forEach(r=>{
+    const svc=r.serviceName||"أخرى";
+    if(!convData[svc]) convData[svc]={total:0,done:0};
+    convData[svc].total++;
+    if(r.status==="disbursed") convData[svc].done++;
+  });
+  const convPct={};
+  Object.entries(convData).forEach(([k,v])=>convPct[k]=Math.round(v.done/v.total*100));
+  drawAmtChart("chartConversion",convPct,"%");
+
+  // جدول المتأخرة
+  const dtEl=document.getElementById("delayedTable");
+  if(dtEl){
+    if(!delayed.length){dtEl.innerHTML=`<div class="empty"><p style="color:var(--green)">✅ لا توجد طلبات متأخرة</p></div>`;return;}
+    dtEl.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:.85rem">
+      <thead><tr style="background:var(--bg2)">
+        ${["رقم الطلب","الخدمة","الشركة","تاريخ التقديم","الأيام المنقضية"].map(h=>`<th style="padding:10px;text-align:right;border-bottom:1px solid var(--border)">${h}</th>`).join("")}
+      </tr></thead>
+      <tbody>${delayed.map(r=>{
+        const d=new Date(r.date||"");
+        const days=isNaN(d)?"-":Math.floor((now-d)/(1000*60*60*24));
+        return`<tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:9px;font-weight:700;color:var(--primary)">${r.reqNum||"-"}</td>
+          <td style="padding:9px">${r.serviceName||"-"}</td>
+          <td style="padding:9px">${(r.fields&&r.fields.company)||r.company||"-"}</td>
+          <td style="padding:9px">${r.date||"-"}</td>
+          <td style="padding:9px"><span style="background:#fde8e8;color:var(--red);padding:3px 10px;border-radius:20px;font-weight:700">${days} يوم</span></td>
+        </tr>`;
+      }).join("")}</tbody>
+    </table>`;
+  }
+}
+
+/* ══════════ التبويب الشخصي ══════════ */
+function renderMyReportTab(){
+  const myReqs=STATE.requests.filter(r=>r.userId===STATE.userId||r.userEmail===STATE.userEmail||!STATE.userId);
+  const disbursed=myReqs.filter(r=>r.status==="disbursed");
+  const totalAmt=disbursed.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+
+  const mk=document.getElementById("myKpis");
+  if(mk) mk.innerHTML=[
+    {ic:"📑",l:"إجمالي طلباتي",v:myReqs.length,s:"كل الحالات"},
+    {ic:"✅",l:"تم صرفها",v:disbursed.length,s:"طلب مصروف"},
+    {ic:"⏳",l:"قيد المعالجة",v:myReqs.filter(r=>r.status!=="disbursed"&&r.status!=="rejected").length,s:"بانتظار"},
+    {ic:"💰",l:"إجمالي ما صُرف لي",v:fmtNum(totalAmt)+" ﷼",s:"من كل طلباتي"},
+  ].map(k=>`<div class="kpi-card"><div class="kpi-ic">${k.ic}</div><div class="kpi-val">${k.v}</div><div class="kpi-lbl">${k.l}</div><div style="font-size:.75rem;color:var(--text-soft);margin-top:4px">${k.s}</div></div>`).join("");
+
+  drawBarChart("myChartService",groupCount(r=>r.serviceName,myReqs),"خدمة");
+  drawBarChart("myChartStatus",groupCount(r=>(STATUS_MAP[r.status]||STATUS_MAP.submitted).label,myReqs),"حالة");
+
+  const mt=document.getElementById("myRequestsTable");
+  if(mt){
+    if(!myReqs.length){mt.innerHTML=`<div class="empty"><p>لا توجد طلبات بعد</p></div>`;return;}
+    mt.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:.85rem">
+      <thead><tr style="background:var(--bg2)">
+        ${["رقم الطلب","الخدمة","الدولة","المبلغ","الحالة","التاريخ"].map(h=>`<th style="padding:10px;text-align:right;border-bottom:1px solid var(--border)">${h}</th>`).join("")}
+      </tr></thead>
+      <tbody>${myReqs.map(r=>{
+        const st=STATUS_MAP[r.status]||STATUS_MAP.submitted;
+        return`<tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:9px;font-weight:700;color:var(--primary)">${r.reqNum||"-"}</td>
+          <td style="padding:9px">${r.serviceName||"-"}</td>
+          <td style="padding:9px">${r.country||"-"}</td>
+          <td style="padding:9px;color:var(--green);font-weight:600">${r.amount?fmtNum(parseFloat(r.amount))+" ﷼":"-"}</td>
+          <td style="padding:9px"><span class="badge" style="background:${st.bg};color:${st.color}">${st.label}</span></td>
+          <td style="padding:9px">${r.date||"-"}</td>
+        </tr>`;
+      }).join("")}</tbody>
+    </table>`;
+  }
+}
+
+/* ══════════ مخطط المبالغ ══════════ */
+function drawAmtChart(id,data,unit="ر.س"){
+  const el=document.getElementById(id);
+  if(!el) return;
+  const entries=Object.entries(data).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  if(!entries.length){el.innerHTML=`<div class="empty"><p>لا توجد بيانات</p></div>`;return;}
+  const max=Math.max(...entries.map(e=>e[1]));
+  el.innerHTML=entries.map(([k,v])=>{
+    const pct=max?Math.round(v/max*100):0;
+    const label=unit==="%"?v+"%":unit==="يوم"?v+" يوم":fmtNum(v)+" "+unit;
+    return`<div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:4px">
+        <span style="color:var(--text)">${k}</span>
+        <span style="font-weight:700;color:var(--primary)">${label}</span>
+      </div>
+      <div style="background:var(--bg);border-radius:6px;height:10px;overflow:hidden">
+        <div style="width:${pct}%;height:100%;background:var(--primary);border-radius:6px;transition:width .5s"></div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+/* ══════════ groupCount مع فلتر ══════════ */
+const _origGroupCount=groupCount;
+function groupCount(fn,arr){
+  const src=arr||STATE.requests;
+  const out={};
+  src.forEach(r=>{const k=fn(r)||"-";out[k]=(out[k]||0)+1;});
+  return out;
+}
+
+/* ══════════ تجميع المبالغ ══════════ */
+function groupAmt(arr,fn){
+  const out={};
+  arr.forEach(r=>{const k=fn(r)||"-";out[k]=(out[k]||0)+(parseFloat(r.amount)||0);});
+  return out;
+}
+
+/* ══════════ تصدير CSV ══════════ */
+function exportReportCSV(){
+  const all=STATE.requests;
+  if(!all.length){toast("لا توجد بيانات للتصدير","err");return;}
+  const headers=["رقم الطلب","الخدمة","الشركة","الدولة","المبلغ","الحالة","التاريخ","الجهة الداعمة"];
+  const rows=all.map(r=>[
+    r.reqNum||"",r.serviceName||"",
+    (r.fields&&r.fields.company)||r.company||"",
+    r.country||"",parseFloat(r.amount)||0,
+    (STATUS_MAP[r.status]||STATUS_MAP.submitted).label,
+    r.date||"",(r.fields&&r.fields.supporting_entity)||""
+  ]);
+  const csv="\uFEFF"+[headers,...rows].map(row=>row.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url; a.download="تقرير_حوافز_بحرة_"+new Date().toISOString().slice(0,10)+".csv";
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},100);
+  toast("✅ تم تصدير التقرير","ok");
+}
+
+function exportMyReportCSV(){
+  const myReqs=STATE.requests.filter(r=>r.userId===STATE.userId||r.userEmail===STATE.userEmail||!STATE.userId);
+  if(!myReqs.length){toast("لا توجد طلبات","err");return;}
+  const headers=["رقم الطلب","الخدمة","الدولة","المبلغ","الحالة","التاريخ"];
+  const rows=myReqs.map(r=>[r.reqNum||"",r.serviceName||"",r.country||"",parseFloat(r.amount)||0,(STATUS_MAP[r.status]||STATUS_MAP.submitted).label,r.date||""]);
+  const csv="\uFEFF"+[headers,...rows].map(row=>row.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url; a.download="طلباتي_"+new Date().toISOString().slice(0,10)+".csv";
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},100);
+  toast("✅ تم تصدير طلباتك","ok");
 }
 
 /* ===== منحنى الزمن (سنوي/شهري) ===== */
