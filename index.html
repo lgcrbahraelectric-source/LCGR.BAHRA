@@ -864,6 +864,9 @@ tbody tr:hover{background:var(--primary-light);transform:scale(1.005)}
 [data-theme="dark"] .user-menu .um-item.danger:hover{background:#3a161640;color:#ff6b63}
 .user-menu .um-item .umi{font-size:1.1rem;width:22px;text-align:center}
 /* تبويبات التقارير */
+@keyframes pulseStep{0%,100%{box-shadow:0 0 0 5px var(--primary-light)}50%{box-shadow:0 0 0 8px var(--primary-light)}}
+@keyframes confettiFall{to{top:105%;transform:rotate(720deg)}}
+@keyframes celebPop{to{transform:translate(-50%,-50%) scale(1)}}
 .rep-tab{
   padding:10px 20px;border:none;background:transparent;color:var(--text-soft);
   font-family:inherit;font-size:.9rem;cursor:pointer;border-bottom:3px solid transparent;
@@ -2947,6 +2950,34 @@ function advanceStatus(id){
   saveRequests(); updateSheetStatus(r);
   renderAdminTable(); renderAdminKpis();
   toast("✓ تم نقل الطلب إلى: "+STATUS_MAP[next].label,"ok");
+  // 🎉 احتفال عند صرف الطلب
+  if(next==="disbursed"){ celebrate(); }
+}
+
+/* ══════════ 🎉 احتفال كونفيتي عند القبول/الصرف ══════════ */
+function celebrate(){
+  const colors=["#1a5e3a","#237a4b","#1a7e42","#e6c200","#4aa876","#fff"];
+  const count=90;
+  const container=document.createElement("div");
+  container.style.cssText="position:fixed;inset:0;pointer-events:none;z-index:99999;overflow:hidden";
+  document.body.appendChild(container);
+  for(let i=0;i<count;i++){
+    const c=document.createElement("div");
+    const size=Math.random()*10+6;
+    const left=Math.random()*100;
+    const color=colors[Math.floor(Math.random()*colors.length)];
+    const duration=Math.random()*2+2.5;
+    const delay=Math.random()*0.5;
+    const rotate=Math.random()*360;
+    c.style.cssText=`position:absolute;top:-20px;left:${left}%;width:${size}px;height:${size*0.6}px;background:${color};border-radius:2px;transform:rotate(${rotate}deg);animation:confettiFall ${duration}s ${delay}s ease-in forwards`;
+    container.appendChild(c);
+  }
+  // رسالة تهنئة
+  const msg=document.createElement("div");
+  msg.style.cssText="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);z-index:100000;background:var(--card-solid);border:2px solid var(--green);border-radius:20px;padding:28px 44px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.25);animation:celebPop .5s .1s cubic-bezier(.34,1.56,.64,1) forwards";
+  msg.innerHTML=`<div style="font-size:3rem;margin-bottom:8px">🎉</div><div style="font-size:1.3rem;font-weight:800;color:var(--green)">تم صرف الحافز بنجاح!</div>`;
+  document.body.appendChild(msg);
+  setTimeout(()=>{ container.remove(); msg.remove(); },4000);
 }
 /* ===== مودال رقم الوزارة (المدقق يرفع للوزارة) ===== */
 let _ministryId=null;
@@ -3006,9 +3037,11 @@ function confirmReject(){
 }
 function setStatus(id,status){
   const r=STATE.requests.find(x=>x.id===id); if(!r)return;
+  const wasDisbursed=r.status==="disbursed";
   r.status=status;
   saveRequests(); updateSheetStatus(r);
   renderAdminTable(); renderAdminKpis();
+  if(status==="disbursed" && !wasDisbursed){ celebrate(); }
 }
 
 /* ===== إعادة الطلب لاستكمال النواقص (المدقق) ===== */
@@ -3281,10 +3314,24 @@ function viewDetail(id){
 }
 function stageTrackerHTML(status){
   if(status==="rejected"){
-    return `<div style="margin-top:20px;padding:16px;background:#fde0de;border-radius:12px;text-align:center;color:#c41e16;font-weight:700">❌ تم رفض هذا الطلب</div>`;
+    return `<div style="margin-top:20px;padding:18px;background:#fde0de;border-radius:14px;text-align:center;color:#c41e16;font-weight:700;font-size:1rem">❌ تم رفض هذا الطلب</div>`;
   }
   const curStep=(STATUS_MAP[status]||{}).step||1;
-  let html=`<div style="margin-top:22px"><div style="font-weight:700;margin-bottom:14px;color:var(--text-soft);font-size:.9rem">مسار الطلب</div><div style="display:flex;flex-direction:column;gap:0">`;
+  const totalSteps=STATUS_FLOW.length;
+  const pct=Math.round((curStep-1)/(totalSteps-1)*100);
+  const isDone=status==="disbursed";
+
+  let html=`<div style="margin-top:22px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-weight:700;color:var(--text-soft);font-size:.9rem">مسار الطلب</div>
+      <div style="font-size:.82rem;font-weight:700;color:${isDone?"var(--green)":"var(--primary)"}">${isDone?"✅ مكتمل":pct+"% مكتمل"}</div>
+    </div>
+    <!-- شريط تقدم علوي -->
+    <div style="background:var(--bg);border-radius:20px;height:8px;overflow:hidden;margin-bottom:22px">
+      <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,var(--primary),var(--green));border-radius:20px;transition:width .6s ease"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:0">`;
+
   STATUS_FLOW.forEach((sk,i)=>{
     const sm=STATUS_MAP[sk];
     const done=sm.step<curStep;
@@ -3295,10 +3342,13 @@ function stageTrackerHTML(status){
     const isLast=i===STATUS_FLOW.length-1;
     html+=`<div style="display:flex;align-items:flex-start;gap:14px">
       <div style="display:flex;flex-direction:column;align-items:center">
-        <div style="width:34px;height:34px;border-radius:50%;background:${done||active?color:"var(--bg)"};border:2px solid ${color};color:${done||active?"#fff":"var(--text-soft)"};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;${active?"box-shadow:0 0 0 4px var(--primary-light)":""}">${ic}</div>
-        ${!isLast?`<div style="width:2px;height:28px;background:${done?"var(--green)":"var(--border)"}"></div>`:""}
+        <div style="width:38px;height:38px;border-radius:50%;background:${done||active?color:"var(--bg)"};border:2px solid ${color};color:${done||active?"#fff":"var(--text-soft)"};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;flex-shrink:0;transition:all .3s;${active?"box-shadow:0 0 0 5px var(--primary-light);animation:pulseStep 2s ease-in-out infinite":""}">${ic}</div>
+        ${!isLast?`<div style="width:2px;height:30px;background:${done?"var(--green)":"var(--border)"};transition:background .3s"></div>`:""}
       </div>
-      <div style="padding-top:5px;color:${txtColor};font-weight:${active?"700":"500"};font-size:.88rem">${sm.label}</div>
+      <div style="padding-top:7px;flex:1">
+        <div style="color:${txtColor};font-weight:${active?"700":"500"};font-size:.9rem">${sm.label}</div>
+        ${active?`<div style="font-size:.76rem;color:var(--primary);margin-top:2px;font-weight:600">◄ المرحلة الحالية</div>`:done?`<div style="font-size:.76rem;color:var(--green);margin-top:2px">✓ تم</div>`:""}
+      </div>
     </div>`;
   });
   html+=`</div></div>`;
