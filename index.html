@@ -1067,6 +1067,7 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
     <div class="nav-sep"></div>
     <div class="nav-label" id="adminLabel" style="display:none">إدارة</div>
     <div class="nav-item admin-only" data-page="admin" onclick="nav('admin')" style="display:none"><span class="ic">⚙️</span> لوحة الأدمن</div>
+    <div class="nav-item admin-only" data-page="users" onclick="nav('users')" style="display:none"><span class="ic">👥</span> المستخدمون</div>
     <div class="nav-item admin-only" data-page="reports" onclick="nav('reports')" style="display:none"><span class="ic">📊</span> التقارير و KPI</div>
   </aside>
 
@@ -1173,6 +1174,32 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
         </div>
         <div id="adminResultCount" style="padding:0 4px 10px;color:var(--text-soft);font-size:.85rem"></div>
         <div class="tbl-wrap"><table id="adminTable"><thead></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- USERS -->
+    <section class="page" id="page-users">
+      <div class="page-head" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:14px">
+        <div>
+          <div class="breadcrumb"><span onclick="nav('home')">الرئيسية</span> ‹ المستخدمون</div>
+          <h1>إدارة المستخدمين</h1>
+          <p>إضافة وتعديل وحذف حسابات المستخدمين وصلاحياتهم</p>
+        </div>
+        <button class="btn btn-primary" onclick="openUserModal()">➕ إضافة مستخدم</button>
+      </div>
+      <div class="panel">
+        <div class="tbl-wrap" style="overflow-x:auto">
+          <table id="usersTable" style="width:100%;border-collapse:collapse">
+            <thead><tr>
+              <th style="padding:12px;text-align:right">اسم المستخدم</th>
+              <th style="padding:12px;text-align:right">الاسم</th>
+              <th style="padding:12px;text-align:right">البريد الإلكتروني</th>
+              <th style="padding:12px;text-align:right">الصلاحية</th>
+              <th style="padding:12px;text-align:center">إجراءات</th>
+            </tr></thead>
+            <tbody id="usersTableBody"></tbody>
+          </table>
+        </div>
       </div>
     </section>
 
@@ -1425,6 +1452,48 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
     <div class="modal-foot">
       <button class="btn btn-primary" onclick="confirmMinistry()">✓ تأكيد الرفع للصادرات</button>
       <button class="btn btn-ghost" onclick="closeMinistryModal()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- مودال إضافة/تعديل مستخدم -->
+<div class="overlay" id="userOverlay">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-head">
+      <div class="ti"><h2 id="userModalTitle">➕ إضافة مستخدم</h2><p>أدخل بيانات المستخدم وصلاحيته</p></div>
+      <button class="close-x" onclick="closeUserModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field" style="margin-bottom:14px">
+        <label>اسم المستخدم (للدخول) <span class="req">*</span></label>
+        <input type="text" id="uUsername" placeholder="مثال: ahmed.ali" autocomplete="off">
+        <p style="font-size:.78rem;color:var(--muted);margin-top:6px" id="uUsernameHint">يُستخدم لتسجيل الدخول — لا يمكن تغييره بعد الإنشاء</p>
+      </div>
+      <div class="field" style="margin-bottom:14px">
+        <label>الاسم الكامل <span class="req">*</span></label>
+        <input type="text" id="uName" placeholder="مثال: أحمد علي الغامدي" autocomplete="off">
+      </div>
+      <div class="field" style="margin-bottom:14px">
+        <label>البريد الإلكتروني</label>
+        <input type="email" id="uEmail" placeholder="ahmed@example.com" autocomplete="off">
+      </div>
+      <div class="field" style="margin-bottom:14px">
+        <label>كلمة المرور <span class="req" id="uPassReq">*</span></label>
+        <input type="text" id="uPassword" placeholder="كلمة المرور" autocomplete="off">
+        <p style="font-size:.78rem;color:var(--muted);margin-top:6px" id="uPassHint">اتركها فارغة عند التعديل للإبقاء على كلمة المرور الحالية</p>
+      </div>
+      <div class="field">
+        <label>الصلاحية <span class="req">*</span></label>
+        <select id="uRole">
+          <option value="user">مقدم طلب</option>
+          <option value="reviewer">مراجع</option>
+          <option value="admin">أدمن</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" onclick="confirmUser()" id="uSaveBtn">✓ حفظ</button>
+      <button class="btn btn-ghost" onclick="closeUserModal()">إلغاء</button>
     </div>
   </div>
 </div>
@@ -1952,6 +2021,7 @@ function nav(page){
   document.querySelectorAll(".mobile-nav .mi").forEach(n=>n.classList.toggle("active",n.dataset.page===page));
   if(page==="myrequests")renderMyRequests();
   if(page==="admin"){renderAdminKpis();renderAdminTable();}
+  if(page==="users")renderUsers();
   if(page==="reports")renderReports();
   if(window.innerWidth<=900)document.getElementById("sidebar").classList.remove("open");
   window.scrollTo(0,0);
@@ -3355,6 +3425,130 @@ function stageTrackerHTML(status){
   return html;
 }
 function closeDetail(){document.getElementById("detailOverlay").classList.remove("show");}
+
+/* ============================================================
+   إدارة المستخدمين (للأدمن)
+   ============================================================ */
+let _usersCache=[];
+let _editingUser=null; // null = إضافة، اسم المستخدم = تعديل
+
+function renderUsers(){
+  const tbody=document.getElementById("usersTableBody");
+  if(!tbody) return;
+  tbody.innerHTML=`<tr><td colspan="5" style="padding:30px;text-align:center;color:var(--text-soft)">⏳ جاري تحميل المستخدمين...</td></tr>`;
+
+  if(SHEET_API.includes("PUT_YOUR")){
+    tbody.innerHTML=`<tr><td colspan="5" style="padding:30px;text-align:center;color:var(--text-soft)">الشيت غير مربوط (وضع تجريبي)</td></tr>`;
+    return;
+  }
+
+  jsonp("listUsers",{},(res)=>{
+    if(res&&res.ok&&res.users){
+      _usersCache=res.users;
+      if(!res.users.length){
+        tbody.innerHTML=`<tr><td colspan="5" style="padding:30px;text-align:center;color:var(--text-soft)">لا يوجد مستخدمون بعد</td></tr>`;
+        return;
+      }
+      const roleLabels={user:"مقدم طلب",reviewer:"مراجع",admin:"أدمن"};
+      const roleBadge={user:"blue",reviewer:"amber",admin:"green"};
+      tbody.innerHTML=res.users.map(u=>`
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:11px;font-weight:700;color:var(--primary)">${esc(u.username)}</td>
+          <td style="padding:11px">${esc(u.name)||"-"}</td>
+          <td style="padding:11px;font-size:.86rem;color:var(--text-soft)">${esc(u.email)||"-"}</td>
+          <td style="padding:11px"><span class="badge ${roleBadge[u.role]||"blue"}">${roleLabels[u.role]||u.role}</span></td>
+          <td style="padding:11px;text-align:center;white-space:nowrap">
+            <button class="act-btn" onclick="openUserModal('${esc(u.username)}')" style="margin-left:6px">✏️ تعديل</button>
+            <button class="act-btn reject" onclick="deleteUserConfirm('${esc(u.username)}')">🗑️ حذف</button>
+          </td>
+        </tr>`).join("");
+    } else {
+      tbody.innerHTML=`<tr><td colspan="5" style="padding:30px;text-align:center;color:var(--red)">تعذّر تحميل المستخدمين${res&&res.error?": "+res.error:""}</td></tr>`;
+    }
+  });
+}
+
+// فتح مودال الإضافة أو التعديل
+function openUserModal(username){
+  _editingUser=username||null;
+  const isEdit=!!username;
+  document.getElementById("userModalTitle").textContent=isEdit?"✏️ تعديل مستخدم":"➕ إضافة مستخدم";
+  const uUser=document.getElementById("uUsername");
+
+  if(isEdit){
+    const u=_usersCache.find(x=>x.username===username);
+    if(!u){toast("المستخدم غير موجود","err");return;}
+    uUser.value=u.username; uUser.disabled=true;
+    document.getElementById("uName").value=u.name||"";
+    document.getElementById("uEmail").value=u.email||"";
+    document.getElementById("uPassword").value="";
+    document.getElementById("uRole").value=u.role||"user";
+    document.getElementById("uPassReq").style.display="none";
+    document.getElementById("uPassHint").textContent="اتركها فارغة للإبقاء على كلمة المرور الحالية";
+    document.getElementById("uUsernameHint").textContent="لا يمكن تغيير اسم المستخدم";
+  } else {
+    uUser.value=""; uUser.disabled=false;
+    document.getElementById("uName").value="";
+    document.getElementById("uEmail").value="";
+    document.getElementById("uPassword").value="";
+    document.getElementById("uRole").value="user";
+    document.getElementById("uPassReq").style.display="";
+    document.getElementById("uPassHint").textContent="كلمة المرور مطلوبة للمستخدم الجديد";
+    document.getElementById("uUsernameHint").textContent="يُستخدم لتسجيل الدخول";
+  }
+  document.getElementById("userOverlay").classList.add("show");
+  setTimeout(()=>{ if(!isEdit) uUser.focus(); },100);
+}
+
+function closeUserModal(){
+  document.getElementById("userOverlay").classList.remove("show");
+  _editingUser=null;
+}
+
+function confirmUser(){
+  const username=document.getElementById("uUsername").value.trim();
+  const name=document.getElementById("uName").value.trim();
+  const email=document.getElementById("uEmail").value.trim();
+  const password=document.getElementById("uPassword").value;
+  const role=document.getElementById("uRole").value;
+
+  if(!username){toast("اسم المستخدم مطلوب","err");return;}
+  if(!name){toast("الاسم الكامل مطلوب","err");return;}
+  if(!_editingUser && !password){toast("كلمة المرور مطلوبة للمستخدم الجديد","err");return;}
+
+  const btn=document.getElementById("uSaveBtn");
+  btn.disabled=true; btn.textContent="جاري الحفظ...";
+
+  jsonp("saveUser",{username,name,email,password,role},(res)=>{
+    btn.disabled=false; btn.textContent="✓ حفظ";
+    if(res&&res.ok){
+      toast(res.mode==="added"?"✅ تمت إضافة المستخدم":"✅ تم تحديث المستخدم","ok");
+      closeUserModal();
+      renderUsers();
+    } else {
+      toast(res&&res.error?res.error:"تعذّر الحفظ","err");
+    }
+  });
+}
+
+function deleteUserConfirm(username){
+  // منع حذف المستخدم الحالي نفسه
+  if(username===STATE.user){toast("لا يمكنك حذف حسابك الحالي","err");return;}
+  if(!confirm("هل أنت متأكد من حذف المستخدم: "+username+"؟\nلا يمكن التراجع عن هذا الإجراء.")) return;
+  jsonp("deleteUser",{username},(res)=>{
+    if(res&&res.ok){
+      toast("✅ تم حذف المستخدم","ok");
+      renderUsers();
+    } else {
+      toast(res&&res.error?res.error:"تعذّر الحذف","err");
+    }
+  });
+}
+
+// دالة تهريب HTML بسيطة لمنع الحقن
+function esc(s){
+  return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
 
 /* ============================================================
    التقارير و KPI
