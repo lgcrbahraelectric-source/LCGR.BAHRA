@@ -894,12 +894,18 @@ tbody tr:hover{background:var(--primary-light);transform:scale(1.005)}
   .top-actions .icon-btn:hover{ transform:none !important; }
   .user-chip{ padding:5px !important; }
   .user-chip .av{ width:30px !important; height:30px !important; font-size:.85rem !important; }
-  /* البطاقات (KPIs): مدمجة، أصغر، أقل تباعد */
-  .kpi-grid{ gap:10px !important; grid-template-columns:1fr 1fr !important; }
-  .kpi-card{ padding:14px !important; border-radius:14px !important; }
-  .kpi-card .kpi-ic{ width:38px !important; height:38px !important; font-size:1.1rem !important; margin-bottom:8px !important; }
-  .kpi-card .kpi-val{ font-size:1.5rem !important; }
-  .kpi-card .kpi-lbl{ font-size:.72rem !important; }
+  /* البطاقات (KPIs): بطاقتين بالصف دائماً، مدمجة أفقياً */
+  .kpi-grid{ gap:10px !important; grid-template-columns:1fr 1fr !important; margin-bottom:20px !important; }
+  .kpi-card{ padding:14px 12px !important; border-radius:14px !important; min-height:auto !important; }
+  /* بطاقات الرئيسية (ic/lbl/val) — الأيقونة أصغر ومموضعة صح */
+  .kpi-card .ic{ position:static !important; width:36px !important; height:36px !important; font-size:1rem !important; border-radius:11px !important; margin-bottom:8px !important; }
+  .kpi-card .lbl{ font-size:.74rem !important; }
+  .kpi-card .val{ font-size:1.7rem !important; margin-top:2px !important; }
+  .kpi-hint{ display:none !important; }
+  /* بطاقات باقي الصفحات (kpi-ic/kpi-val/kpi-lbl) */
+  .kpi-card .kpi-ic{ width:36px !important; height:36px !important; font-size:1rem !important; margin-bottom:8px !important; }
+  .kpi-card .kpi-val{ font-size:1.6rem !important; line-height:1.1 !important; }
+  .kpi-card .kpi-lbl{ font-size:.72rem !important; line-height:1.3 !important; }
   /* الخدمات: بطاقة واحدة بالصف */
   .svc-grid{ grid-template-columns:1fr !important; gap:12px !important; }
   /* زر الـ AI: يرجع لأسفل بما إن الشريط انشال */
@@ -909,9 +915,10 @@ tbody tr:hover{background:var(--primary-light);transform:scale(1.005)}
   .page-head h1{ font-size:1.3rem !important; }
   .page-head p{ font-size:.85rem !important; }
 }
-/* شاشات صغيرة جداً: بطاقة KPI واحدة بالصف */
-@media(max-width:380px){
-  .kpi-grid{ grid-template-columns:1fr !important; }
+/* شاشات صغيرة جداً: نبقي بطاقتين بالصف مع تصغير الخط */
+@media(max-width:360px){
+  .kpi-card .kpi-val{ font-size:1.4rem !important; }
+  .kpi-card .kpi-lbl{ font-size:.68rem !important; }
 }
 
 /* ═══════════════════════════════════════════════
