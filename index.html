@@ -672,10 +672,11 @@ tbody tr:hover{background:var(--primary-light);transform:scale(1.005)}
   -webkit-mask-composite:xor;mask-composite:exclude;opacity:.7}
 /* كل محتوى البطاقة فوق الإطار */
 .login-card>*{position:relative;z-index:1}
-.login-card .mobile-logos{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:20px}
-.login-card .mobile-logos img{height:44px}
-.login-card .mobile-logos #loginSaudi{height:60px}
-.login-card .mobile-logos .hsep{width:1.5px;height:36px;background:rgba(255,255,255,.25)}
+.login-card .mobile-logos{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:20px;flex-wrap:nowrap}
+.login-card .mobile-logos img{max-width:42%;height:auto;object-fit:contain}
+.login-card .mobile-logos #loginLogo{max-height:34px}
+.login-card .mobile-logos #loginSaudi{max-height:44px}
+.login-card .mobile-logos .hsep{width:1.5px;height:34px;background:rgba(255,255,255,.25);flex-shrink:0}
 .login-card h2{font-size:1.7rem;font-weight:800;margin-bottom:6px;color:#fff}
 .login-card .sub{color:rgba(255,255,255,.6);margin-bottom:28px;font-size:.92rem}
 .login-card .field{text-align:right}
@@ -693,34 +694,31 @@ tbody tr:hover{background:var(--primary-light);transform:scale(1.005)}
 @media(max-width:900px){
   .login-hero{display:none}
   .login-form-side{width:100%}
-  .login-card .mobile-logos{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:18px}
-  .login-card .mobile-logos img{height:42px}
-  .login-card .mobile-logos .hsep{width:1.5px;height:34px;background:rgba(255,255,255,.25)}
+  .login-card{padding:32px 24px !important}
+  .login-card .mobile-logos{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:18px}
+  .login-card .mobile-logos #loginLogo{max-height:30px}
+  .login-card .mobile-logos #loginSaudi{max-height:40px}
+  .login-card .mobile-logos img{max-width:42%;height:auto}
+  .login-card .mobile-logos .hsep{width:1.5px;height:30px;background:rgba(255,255,255,.25)}
+  .login-card h2{font-size:1.5rem}
+  .login-card .sub{margin-bottom:22px}
 }
 
 /* ====== MOBILE ====== */
-.mobile-nav{display:none}
+.mobile-nav{display:none !important}
 .hamburger{display:none}
 @media(max-width:900px){
-  .sidebar{position:fixed;right:-280px;top:72px;bottom:0;z-index:200;box-shadow:-8px 0 30px rgba(4,32,29,.15)}
+  .sidebar{position:fixed;right:-280px;top:64px;bottom:0;z-index:200;box-shadow:-8px 0 30px rgba(4,32,29,.15)}
   .sidebar.open{right:0}
   .hamburger{display:flex}
-  main{padding:18px}
+  main{padding:16px}
   .brand .name{display:none}
   .user-chip .nm{display:none}
   .field-row{grid-template-columns:1fr}
-  .page-head h1{font-size:1.45rem}
-  .mobile-nav{
-    display:flex;position:fixed;bottom:14px;left:14px;right:14px;
-    background:var(--card);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);
-    border:1px solid var(--glass-border);border-radius:22px;
-    justify-content:space-around;padding:10px 6px;z-index:150;
-    box-shadow:0 12px 30px rgba(4,32,29,.2), 0 1px 0 rgba(255,255,255,.3) inset;
-  }
-  .mobile-nav .mi{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--text-soft);cursor:pointer;font-size:.68rem;font-weight:600;padding:6px 14px;border-radius:14px;transition:.2s}
-  .mobile-nav .mi.active{color:#fff;background:var(--grad-primary);box-shadow:0 6px 14px rgba(20,40,30,.12)}
-  .mobile-nav .mi .ic{font-size:1.25rem}
-  main{padding-bottom:100px}
+  .page-head h1{font-size:1.35rem}
+  /* الشريط السفلي مخفي نهائياً - نستخدم قائمة الهامبرغر */
+  .mobile-nav{ display:none !important; }
+  main{padding-bottom:20px}
 }
 .empty{text-align:center;padding:50px 20px;color:var(--text-soft)}
 .empty .ei{font-size:3rem;opacity:.4}
@@ -876,6 +874,45 @@ tbody tr:hover{background:var(--primary-light);transform:scale(1.005)}
 .rep-tab.active{color:var(--primary);border-bottom-color:var(--primary)}
 #menuBackdrop{position:fixed;inset:0;z-index:250;display:none}
 #menuBackdrop.show{display:block}
+
+/* ═══════════════════════════════════════════════
+   تحسينات تنسيق الجوال — هيدر مرتب، بطاقات مدمجة
+   ═══════════════════════════════════════════════ */
+@media(max-width:640px){
+  /* الهيدر: أصغر وأنظف */
+  #topbar{ padding:8px 12px !important; }
+  #topbar .brand img#hdrLogo{ height:30px !important; }
+  #topbar .hdr-saudi{ height:38px !important; }
+  #topbar .brand .logo-sep, #topbar .brand .v{ display:none !important; }
+  /* أزرار الهيدر: أصغر ومتقاربة ومرتبة */
+  .top-actions{ gap:6px !important; }
+  .top-actions .icon-btn{
+    width:38px !important; height:38px !important;
+    font-size:1rem !important; border-radius:11px !important;
+    transform:none !important;
+  }
+  .top-actions .icon-btn:hover{ transform:none !important; }
+  .user-chip{ padding:5px !important; }
+  .user-chip .av{ width:30px !important; height:30px !important; font-size:.85rem !important; }
+  /* البطاقات (KPIs): مدمجة، أصغر، أقل تباعد */
+  .kpi-grid{ gap:10px !important; grid-template-columns:1fr 1fr !important; }
+  .kpi-card{ padding:14px !important; border-radius:14px !important; }
+  .kpi-card .kpi-ic{ width:38px !important; height:38px !important; font-size:1.1rem !important; margin-bottom:8px !important; }
+  .kpi-card .kpi-val{ font-size:1.5rem !important; }
+  .kpi-card .kpi-lbl{ font-size:.72rem !important; }
+  /* الخدمات: بطاقة واحدة بالصف */
+  .svc-grid{ grid-template-columns:1fr !important; gap:12px !important; }
+  /* زر الـ AI: يرجع لأسفل بما إن الشريط انشال */
+  .ai-chat-fab{ bottom:18px !important; left:18px !important; width:52px !important; height:52px !important; }
+  .ai-chat-panel{ bottom:80px !important; }
+  /* عنوان الترحيب أصغر */
+  .page-head h1{ font-size:1.3rem !important; }
+  .page-head p{ font-size:.85rem !important; }
+}
+/* شاشات صغيرة جداً: بطاقة KPI واحدة بالصف */
+@media(max-width:380px){
+  .kpi-grid{ grid-template-columns:1fr !important; }
+}
 
 /* ═══════════════════════════════════════════════
    الوضع الرسمي الحكومي — إلغاء التأثيرات الزجاجية والتدرجات
@@ -1988,7 +2025,7 @@ function logout(){
 function enterApp(){
   document.getElementById("topbar").style.display="flex";
   document.getElementById("shell").style.display="flex";
-  if(window.innerWidth<=900) document.getElementById("mobileNav").style.display="flex";
+  document.getElementById("mobileNav").style.display="none";
   document.getElementById("userName").textContent=STATE.user;
   document.getElementById("userAv").textContent=(STATE.user[0]||"U").toUpperCase();
   document.getElementById("welcomeMsg").textContent=(STATE.lang==="en"?"Welcome ":"مرحباً ")+STATE.user+" 👋";
@@ -4929,7 +4966,7 @@ function attachReveal(){
 window.addEventListener("DOMContentLoaded",init);
 window.addEventListener("resize",()=>{
   if(STATE.user){
-    document.getElementById("mobileNav").style.display=window.innerWidth<=900?"flex":"none";
+    document.getElementById("mobileNav").style.display="none";
   }
 });
 </script>
