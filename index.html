@@ -882,21 +882,24 @@ tbody tr:hover{background:var(--primary-light);transform:scale(1.005)}
    تحسينات تنسيق الجوال — هيدر مرتب، بطاقات مدمجة
    ═══════════════════════════════════════════════ */
 @media(max-width:640px){
-  /* الهيدر: أصغر وأنظف */
-  #topbar{ padding:8px 12px !important; }
-  #topbar .brand img#hdrLogo{ height:30px !important; }
-  #topbar .hdr-saudi{ height:38px !important; }
-  #topbar .brand .logo-sep, #topbar .brand .v{ display:none !important; }
-  /* أزرار الهيدر: أصغر ومتقاربة ومرتبة */
-  .top-actions{ gap:6px !important; }
+  /* الهيدر: تنظيم احترافي بدون قص */
+  #topbar{ padding:0 10px !important; height:60px !important; gap:8px !important; }
+  #topbar .brand{ gap:8px !important; min-width:0 !important; flex:1 1 auto !important; overflow:hidden !important; }
+  #topbar .brand img#hdrLogo{ height:26px !important; flex-shrink:0 !important; }
+  #topbar .hdr-saudi{ height:34px !important; flex-shrink:0 !important; }
+  #topbar .brand .logo-sep, #topbar .brand .v, #topbar .brand .name{ display:none !important; }
+  /* الأزرار: مدمجة وما تنقص */
+  .top-actions{ gap:5px !important; flex-shrink:0 !important; }
   .top-actions .icon-btn{
-    width:38px !important; height:38px !important;
-    font-size:1rem !important; border-radius:11px !important;
-    transform:none !important;
+    width:36px !important; height:36px !important;
+    font-size:.95rem !important; border-radius:10px !important;
+    flex-shrink:0 !important; transform:none !important;
   }
   .top-actions .icon-btn:hover{ transform:none !important; }
-  .user-chip{ padding:5px !important; }
-  .user-chip .av{ width:30px !important; height:30px !important; font-size:.85rem !important; }
+  .user-chip{ padding:4px !important; flex-shrink:0 !important; }
+  .user-chip .av{ width:30px !important; height:30px !important; font-size:.82rem !important; }
+  .user-chip .nm{ display:none !important; }
+  .hamburger{ order:-1 !important; }
   /* البطاقات (KPIs): بطاقتين بالصف دائماً، مدمجة أفقياً */
   .kpi-grid{ gap:10px !important; grid-template-columns:1fr 1fr !important; margin-bottom:20px !important; }
   .kpi-card{ padding:14px 12px !important; border-radius:14px !important; min-height:auto !important; }
