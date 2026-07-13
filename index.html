@@ -708,8 +708,11 @@ tbody tr:hover{background:var(--primary-light);transform:scale(1.005)}
 .mobile-nav{display:none !important}
 .hamburger{display:none}
 @media(max-width:900px){
+  html,body{overflow-x:hidden !important;max-width:100vw !important}
+  .shell{display:block !important;overflow-x:hidden !important}
   .sidebar{position:fixed;right:-280px;top:64px;bottom:0;z-index:200;box-shadow:-8px 0 30px rgba(4,32,29,.15)}
   .sidebar.open{right:0}
+  main{width:100% !important;max-width:100% !important;flex:none !important}
   .hamburger{display:flex}
   main{padding:16px}
   .brand .name{display:none}
