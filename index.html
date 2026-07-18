@@ -1967,6 +1967,8 @@ function doLogin(){
   // التحقق من الشيت
   jsonp("login",{username:u,password:p},(res)=>{
     if(res&&res.ok&&res.user){
+      // حفظ بيانات المصادقة في الذاكرة فقط (للعمليات الحساسة) - لا تُخزّن دائماً
+      STATE._authUser=u; STATE._authPass=p;
       try{shapesReact("success");}catch(e){}
       setTimeout(()=>{ loginSuccess(res.user.name||u, res.user.role||"user"); },700);
     } else {
@@ -3566,10 +3568,13 @@ function confirmUser(){
   if(!name){toast("الاسم الكامل مطلوب","err");return;}
   if(!_editingUser && !password){toast("كلمة المرور مطلوبة للمستخدم الجديد","err");return;}
 
+  // التأكد من توفر بيانات المصادقة (قد تُفقد بعد تحديث الصفحة)
+  if(!ensureAuth()) return;
+
   const btn=document.getElementById("uSaveBtn");
   btn.disabled=true; btn.textContent="جاري الحفظ...";
 
-  jsonp("saveUser",{username,name,email,password,role},(res)=>{
+  jsonp("saveUser",{username,name,email,password,role,authUser:STATE._authUser,authPass:STATE._authPass},(res)=>{
     btn.disabled=false; btn.textContent="✓ حفظ";
     if(res&&res.ok){
       toast(res.mode==="added"?"✅ تمت إضافة المستخدم":"✅ تم تحديث المستخدم","ok");
@@ -3584,8 +3589,9 @@ function confirmUser(){
 function deleteUserConfirm(username){
   // منع حذف المستخدم الحالي نفسه
   if(username===STATE.user){toast("لا يمكنك حذف حسابك الحالي","err");return;}
+  if(!ensureAuth()) return;
   if(!confirm("هل أنت متأكد من حذف المستخدم: "+username+"؟\nلا يمكن التراجع عن هذا الإجراء.")) return;
-  jsonp("deleteUser",{username},(res)=>{
+  jsonp("deleteUser",{username,authUser:STATE._authUser,authPass:STATE._authPass},(res)=>{
     if(res&&res.ok){
       toast("✅ تم حذف المستخدم","ok");
       renderUsers();
@@ -3598,6 +3604,16 @@ function deleteUserConfirm(username){
 // دالة تهريب HTML بسيطة لمنع الحقن
 function esc(s){
   return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+// التأكد من توفر بيانات المصادقة للعمليات الحساسة (تُطلب مرة بعد تحديث الصفحة)
+function ensureAuth(){
+  if(STATE._authUser && STATE._authPass) return true;
+  const pw=prompt("لأسباب أمنية، الرجاء إعادة إدخال كلمة مرورك للتأكيد:");
+  if(!pw){ toast("تم الإلغاء","err"); return false; }
+  STATE._authUser=STATE.user;
+  STATE._authPass=pw;
+  return true;
 }
 
 /* ============================================================
