@@ -1529,7 +1529,8 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
       </div>
       <div class="field" style="margin-bottom:14px">
         <label>كلمة المرور <span class="req" id="uPassReq">*</span></label>
-        <input type="text" id="uPassword" placeholder="كلمة المرور" autocomplete="off">
+        <input type="text" id="uPassword" placeholder="كلمة المرور (8 أحرف على الأقل، حروف وأرقام)" autocomplete="off" oninput="checkPassStrength(this.value)">
+        <div id="passStrengthBar" style="height:5px;border-radius:3px;background:var(--border);margin-top:8px;overflow:hidden"><div id="passStrengthFill" style="height:100%;width:0;transition:.3s"></div></div>
         <p style="font-size:.78rem;color:var(--muted);margin-top:6px" id="uPassHint">اتركها فارغة عند التعديل للإبقاء على كلمة المرور الحالية</p>
       </div>
       <div class="field">
@@ -3567,6 +3568,11 @@ function confirmUser(){
   if(!username){toast("اسم المستخدم مطلوب","err");return;}
   if(!name){toast("الاسم الكامل مطلوب","err");return;}
   if(!_editingUser && !password){toast("كلمة المرور مطلوبة للمستخدم الجديد","err");return;}
+  // فحص قوة كلمة المرور (لو أُدخلت)
+  if(password){
+    const err=isPasswordStrong(password);
+    if(err){ toast(err,"err"); return; }
+  }
 
   // التأكد من توفر بيانات المصادقة (قد تُفقد بعد تحديث الصفحة)
   if(!ensureAuth()) return;
@@ -3614,6 +3620,36 @@ function ensureAuth(){
   STATE._authUser=STATE.user;
   STATE._authPass=pw;
   return true;
+}
+
+// فحص قوة كلمة المرور (مؤشر بصري)
+function checkPassStrength(pwd){
+  const fill=document.getElementById("passStrengthFill");
+  if(!fill) return;
+  if(!pwd){ fill.style.width="0"; return; }
+  let score=0;
+  if(pwd.length>=8) score++;
+  if(pwd.length>=12) score++;
+  if(/[A-Za-z]/.test(pwd) && /[0-9]/.test(pwd)) score++;
+  if(/[^A-Za-z0-9]/.test(pwd)) score++;
+  const levels=[
+    {w:"25%",c:"#e74c3c",t:"ضعيفة"},
+    {w:"50%",c:"#e67e22",t:"متوسطة"},
+    {w:"75%",c:"#f1c40f",t:"جيدة"},
+    {w:"100%",c:"#1a7e42",t:"قوية"}
+  ];
+  const lvl=levels[Math.min(score,4)-1]||levels[0];
+  fill.style.width=lvl.w;
+  fill.style.background=lvl.c;
+}
+
+// التحقق من قوة كلمة المرور قبل الإرسال
+function isPasswordStrong(pwd){
+  if(pwd.length<8) return "كلمة المرور يجب أن تكون 8 أحرف على الأقل";
+  if(!/[A-Za-z]/.test(pwd) || !/[0-9]/.test(pwd)) return "كلمة المرور يجب أن تحتوي على حروف وأرقام";
+  const weak=["12345678","password","11111111","00000000","abcd1234","qwerty123","admin123"];
+  if(weak.indexOf(pwd.toLowerCase())!==-1) return "كلمة المرور ضعيفة جداً، اختر كلمة أقوى";
+  return null;
 }
 
 /* ============================================================
