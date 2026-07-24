@@ -769,7 +769,8 @@ tbody tr:hover{background:var(--primary-light);transform:scale(1.005)}
 .dash-kpi::after{content:"";position:absolute;top:-40%;left:-20%;width:130px;height:130px;border-radius:50%;background:var(--grad-accent);filter:blur(48px);opacity:.18}
 .dash-kpi .dk-ic{width:54px;height:54px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;margin-bottom:14px;box-shadow:0 8px 18px rgba(20,40,30,.10)}
 .dash-kpi .dk-lbl{color:var(--text-soft);font-size:.92rem;font-weight:600}
-.dash-kpi .dk-val{font-size:2.6rem;font-weight:800;margin-top:6px;line-height:1;font-variant-numeric:tabular-nums;background:var(--grad-primary);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.dash-kpi .dk-val{font-size:clamp(1.5rem,2.4vw,2.6rem);font-weight:800;margin-top:6px;line-height:1.1;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--grad-primary);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.dash-kpi .dk-cur{font-size:.42em;font-weight:700;margin-inline-start:6px;-webkit-text-fill-color:var(--text-soft);color:var(--text-soft)}
 .dash-kpi .dk-val.flash{animation:numFlash .8s}
 @keyframes numFlash{0%{transform:scale(1)}30%{transform:scale(1.18);filter:brightness(1.3)}100%{transform:scale(1)}}
 .dash-kpi .dk-sub{color:var(--text-soft);font-size:.78rem;margin-top:8px}
@@ -4538,23 +4539,35 @@ function updateDashClock(){
 function renderDashboard(){
   const all=STATE.requests;
   const total=all.length;
-  const claimed=all.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  const amt=r=>parseFloat(r.amount)||0;
+
+  // الطلبات الفعّالة = كل الطلبات ما عدا المرفوضة/الملغاة
+  // (كانت المطالبات تُحتسب على الكل، فيدخل فيها المرفوض ويضخّم الرقم)
+  const activeList=all.filter(r=>r.status!=="rejected");
+  const claimed=activeList.reduce((s,r)=>s+amt(r),0);
+  const rejectedList=all.filter(r=>r.status==="rejected");
+  const rejectedAmt=rejectedList.reduce((s,r)=>s+amt(r),0);
+
   const disbursedList=all.filter(r=>r.status==="disbursed");
-  const disbursed=disbursedList.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  const disbursed=disbursedList.reduce((s,r)=>s+amt(r),0);
   const rate=claimed?Math.round(disbursed/claimed*100):0;
   // إجمالي مبالغ الدعم الاستثنائي
   const exceptionalList=all.filter(r=>r.serviceId==="exceptional"||r.serviceName==="الدعم الاستثنائي");
-  const exceptionalTotal=exceptionalList.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  const exceptionalTotal=exceptionalList.reduce((s,r)=>s+amt(r),0);
   // اكتشاف تغيّر العدد للفلاش
   const changed=(_dashLastTotal!==-1 && total!==_dashLastTotal);
   _dashLastTotal=total;
 
   // KPIs
   document.getElementById("dashKpis").innerHTML=`
-    ${dashKpi("📋","إجمالي الطلبات",total,"جميع الخدمات","t1",changed)}
-    ${dashKpi("💰","إجمالي المطالبات",fmtNum(claimed)+" ﷼",fmtNum(claimed)+" ريال","t4",changed)}
-    ${dashKpi("✅","إجمالي المصروف",fmtNum(disbursed)+" ﷼",disbursedList.length+" طلب مصروف","t2",changed)}
-    ${dashKpi("⭐","الدعم الاستثنائي",fmtNum(exceptionalTotal)+" ﷼",exceptionalList.length+" طلب استثنائي","t3",changed)}`;
+    ${dashKpi("📋","إجمالي الطلبات",total,
+        `${activeList.length} فعّال · ${rejectedList.length} مرفوض`,"t1",changed)}
+    ${dashKpi("💰","إجمالي المطالبات",dashMoney(claimed),
+        `${activeList.length} طلب فعّال · لا تشمل المرفوضة`,"t4",changed)}
+    ${dashKpi("✅","إجمالي المصروف",dashMoney(disbursed),
+        `${disbursedList.length} طلب مصروف · ${rate}% من المطالبات`,"t2",changed)}
+    ${dashKpi("⭐","الدعم الاستثنائي",dashMoney(exceptionalTotal),
+        exceptionalList.length+" طلب استثنائي","t3",changed)}`;
 
   // توزيع الحالات
   renderDashStatus(all);
@@ -4567,6 +4580,9 @@ function renderDashboard(){
   // منحنى السنوات
   renderDashYearChart(all);
   if(STATE.lang==="en") setTimeout(applyTranslation,0);
+}
+function dashMoney(n){
+  return `${fmtNum(n)}<span class="dk-cur">ريال</span>`;
 }
 function dashKpi(ic,lbl,val,sub,cls,flash){
   return `<div class="dash-kpi">
