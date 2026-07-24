@@ -4591,7 +4591,7 @@ const DASH_STATUS_COLORS = {
 };
 
 function renderDashStatus(all){
-  const order=["submitted","preliminary","review","disbursed","rejected"];
+  const order=["submitted","preliminary","review","returned","disbursed","rejected"];
   const counts={}; all.forEach(r=>{counts[r.status]=(counts[r.status]||0)+1;});
   const total=all.length;
   const el=document.getElementById("dashStatus");
