@@ -1230,7 +1230,7 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
               <option value="review">تحت الدراسة</option>
               <option value="returned">معاد لاستكمال النواقص</option>
               <option value="disbursed">تم الصرف</option>
-              <option value="rejected">مرفوض</option>
+              <option value="rejected">تم رفض طلب الحافز</option>
             </select>
             <select id="myReqServiceFilter" onchange="renderMyRequests()" class="flt-select">
               <option value="">كل الخدمات</option>
@@ -1273,7 +1273,7 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
               <option value="review">تحت الدراسة</option>
               <option value="returned">معاد لاستكمال النواقص</option>
               <option value="disbursed">تم الصرف</option>
-              <option value="rejected">مرفوض</option>
+              <option value="rejected">تم رفض طلب الحافز</option>
             </select>
             <select id="adminServiceFilter" onchange="renderAdminTable()" class="flt-select">
               <option value="">كل الخدمات</option>
@@ -1968,7 +1968,7 @@ const STATUS_MAP = {
   review:     {label:"طلب الصرف تحت الدراسة", badge:"amber", step:3, icon:"🔍"},
   returned:   {label:"معاد لاستكمال نواقص صرف الحافز", badge:"orange", step:3, icon:"↩️"},
   disbursed:  {label:"تم صرف طلب الحافز", badge:"green", step:4, icon:"✅"},
-  rejected:   {label:"مرفوض", badge:"red", step:0, icon:"❌"}
+  rejected:   {label:"تم رفض طلب الحافز", badge:"red", step:0, icon:"❌"}
 };
 // تسلسل المراحل (بدون الرفض)
 const STATUS_FLOW = ["submitted","preliminary","review","disbursed"];
@@ -2331,6 +2331,7 @@ const I18N = {
   "تحت الدراسة":"Under Review",
   "تم الصرف":"Disbursed",
   "مرفوض":"Rejected",
+  "تم رفض طلب الحافز":"Incentive Request Rejected",
 
   // الحالات الرسمية الكاملة
   "تم إرسال الطلب للصادرات لأخذ الموافقة":"Request submitted to Exports for approval",
