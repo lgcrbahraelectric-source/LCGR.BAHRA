@@ -4540,7 +4540,16 @@ function renderDashboard(){
   const all=STATE.requests;
   const total=all.length;
   const disb=r=>parseFloat(r.disbursed)||0;             // مبلغ الصرف الفعلي (عمود M)
-  const stype=r=>(r.supportType||"").toString().trim(); // نوع الدعم / الجهة الداعمة (عمود F)
+  // الجهة الداعمة: لو الطلب استثنائي تُقرأ من "اسم المعرض/الجهة" (عمود J)،
+  // لأن هناك الجهة الفعلية (مدن/صندوق...). غير ذلك من "نوع الدعم" (عمود F).
+  const stype=r=>{
+    const excp = r.serviceId==="exceptional" || /استثنائي|التحول الرقمي/.test(r.serviceName||"");
+    if(excp){
+      const j=(r.entityName||"").toString().trim();
+      if(j) return j;
+    }
+    return (r.supportType||"").toString().trim();
+  };
 
   // تصنيف الجهة الداعمة
   const isHRDF=r=>/hrdf|هدف|الموارد البشرية|صندوق تنمية/i.test(stype(r));
