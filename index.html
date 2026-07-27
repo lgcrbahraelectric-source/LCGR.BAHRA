@@ -4546,8 +4546,6 @@ function renderDashboard(){
   const isHRDF=r=>/hrdf|هدف|الموارد البشرية|صندوق تنمية/i.test(stype(r));
   const isExceptional=r=> r.serviceId==="exceptional" || /استثنائي|التحول الرقمي/.test(r.serviceName||"") || /استثنائي/.test(stype(r));
   const isExports=r=> !isHRDF(r) && !isExceptional(r);   // الصادرات = الباقي
-  // تصنيف موحّد يُستخدم في البطاقات ولوحة الجهات معاً (يمنع التعارض)
-  const classify=r=> isHRDF(r)?"HRDF" : (isExceptional(r)?"الدعم الاستثنائي":"صادرات");
   const sumBy=(list,fn)=>list.reduce((s,r)=>s+fn(r),0);
 
   const exportsList=all.filter(isExports), excList=all.filter(isExceptional), hrdfList=all.filter(isHRDF);
@@ -4571,9 +4569,10 @@ function renderDashboard(){
   // توزيع الحالات
   renderDashStatus(all);
   // الجهات الداعمة (نوع الدعم) + إجمالي مبلغ الصرف لكل جهة
-  renderDashSupport(all,disb,classify);
-  // حسب نوع الحافز (اسم الخدمة) — بإجمالي مبلغ الصرف
-  renderDashList("dashType",groupBySum(all,r=>r.serviceName,disb),"📂","#f0b429");
+  // الجهات الداعمة: تجميع حسب اسم الجهة الفعلي من عمود "نوع الدعم" (هيئة تنمية الصادرات / مدن / HRDF)
+  renderDashSupport(all,disb,stype);
+  // حسب نوع الحافز — عدد الطلبات لكل خدمة (الشكل الأصلي)
+  renderDashList("dashType",groupBy(all,r=>r.serviceName),"📂","#f0b429");
   // أعلى الدول
   renderDashList("dashCountry",groupBy(all,r=>r.country).slice(0,7),"🌍","#29c1cf");
   // منحنى السنوات
@@ -4589,27 +4588,27 @@ function groupBySum(arr,keyFn,valFn){
 }
 
 /* لوحة الجهات الداعمة: كل جهة (نوع دعم) + عدد الطلبات + إجمالي مبلغ الصرف */
-function renderDashSupport(all,disb,classify){
+function renderDashSupport(all,disb,stype){
   const el=document.getElementById("dashSupport");
   if(!el) return;
   const m={};
   all.forEach(r=>{
-    const k=classify(r);   // نفس تصنيف البطاقات: صادرات / استثنائي / HRDF
+    const k=stype(r)||"غير محدد";   // اسم الجهة الفعلي: هيئة تنمية الصادرات / مدن / HRDF
     if(!m[k]) m[k]={count:0,sum:0};
     m[k].count++; m[k].sum+=disb(r);
   });
-  const order={"صادرات":0,"الدعم الاستثنائي":1,"HRDF":2};
-  const rows=Object.entries(m).sort((a,b)=>(order[a[0]]??9)-(order[b[0]]??9));
+  const rows=Object.entries(m).sort((a,b)=>b[1].sum-a[1].sum || b[1].count-a[1].count);
   const totalSum=rows.reduce((s,[,v])=>s+v.sum,0);
-  if(totalSum===0){
+  if(totalSum===0 && rows.every(([k])=>k==="غير محدد")){
     el.innerHTML=`<div class="empty" style="padding:22px;text-align:center"><div class="ei">🤝</div><p>لم تُعبّأ مبالغ الصرف بعد</p></div>`;
     return;
   }
   const maxSum=Math.max(1,...rows.map(([,v])=>v.sum));
   el.innerHTML=rows.map(([name,v],i)=>{
     const pct=Math.round(v.sum/maxSum*100);
+    const short=name.length>26?name.substring(0,26)+"…":name;
     return `<div class="dash-stat-row">
-      <span class="dsr-label" title="${name}">${name} <span style="color:var(--text-soft);font-size:.75rem">(${v.count})</span></span>
+      <span class="dsr-label" title="${name}">${short} <span style="color:var(--text-soft);font-size:.75rem">(${v.count})</span></span>
       <div class="dash-bar-track"><div class="dash-bar-fill c${i%7}" style="width:${pct}%"></div></div>
       <span class="dsr-val">${fmtNum(v.sum)}</span>
     </div>`;
