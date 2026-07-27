@@ -4546,6 +4546,8 @@ function renderDashboard(){
   const isHRDF=r=>/hrdf|هدف|الموارد البشرية|صندوق تنمية/i.test(stype(r));
   const isExceptional=r=> r.serviceId==="exceptional" || /استثنائي|التحول الرقمي/.test(r.serviceName||"") || /استثنائي/.test(stype(r));
   const isExports=r=> !isHRDF(r) && !isExceptional(r);   // الصادرات = الباقي
+  // تصنيف موحّد يُستخدم في البطاقات ولوحة الجهات معاً (يمنع التعارض)
+  const classify=r=> isHRDF(r)?"HRDF" : (isExceptional(r)?"الدعم الاستثنائي":"صادرات");
   const sumBy=(list,fn)=>list.reduce((s,r)=>s+fn(r),0);
 
   const exportsList=all.filter(isExports), excList=all.filter(isExceptional), hrdfList=all.filter(isHRDF);
@@ -4569,7 +4571,7 @@ function renderDashboard(){
   // توزيع الحالات
   renderDashStatus(all);
   // الجهات الداعمة (نوع الدعم) + إجمالي مبلغ الصرف لكل جهة
-  renderDashSupport(all,disb,stype);
+  renderDashSupport(all,disb,classify);
   // حسب نوع الحافز (اسم الخدمة) — بإجمالي مبلغ الصرف
   renderDashList("dashType",groupBySum(all,r=>r.serviceName,disb),"📂","#f0b429");
   // أعلى الدول
@@ -4587,27 +4589,27 @@ function groupBySum(arr,keyFn,valFn){
 }
 
 /* لوحة الجهات الداعمة: كل جهة (نوع دعم) + عدد الطلبات + إجمالي مبلغ الصرف */
-function renderDashSupport(all,disb,stype){
+function renderDashSupport(all,disb,classify){
   const el=document.getElementById("dashSupport");
   if(!el) return;
   const m={};
   all.forEach(r=>{
-    const k=stype(r)||"غير محدد";
+    const k=classify(r);   // نفس تصنيف البطاقات: صادرات / استثنائي / HRDF
     if(!m[k]) m[k]={count:0,sum:0};
     m[k].count++; m[k].sum+=disb(r);
   });
-  const rows=Object.entries(m).sort((a,b)=>b[1].sum-a[1].sum || b[1].count-a[1].count);
-  if(!rows.length || (rows.length===1 && rows[0][0]==="غير محدد" && rows[0][1].sum===0)){
-    el.innerHTML=`<div class="empty" style="padding:22px;text-align:center"><div class="ei">🤝</div><p>لم تُعبّأ الجهات الداعمة بعد</p></div>`;
+  const order={"صادرات":0,"الدعم الاستثنائي":1,"HRDF":2};
+  const rows=Object.entries(m).sort((a,b)=>(order[a[0]]??9)-(order[b[0]]??9));
+  const totalSum=rows.reduce((s,[,v])=>s+v.sum,0);
+  if(totalSum===0){
+    el.innerHTML=`<div class="empty" style="padding:22px;text-align:center"><div class="ei">🤝</div><p>لم تُعبّأ مبالغ الصرف بعد</p></div>`;
     return;
   }
   const maxSum=Math.max(1,...rows.map(([,v])=>v.sum));
-  const cols=["#1a7e42","#0ea5a4","#d97706","#2563eb","#7c3aed","#db2777","#0891b2"];
   el.innerHTML=rows.map(([name,v],i)=>{
     const pct=Math.round(v.sum/maxSum*100);
-    const short=name.length>24?name.substring(0,24)+"…":name;
     return `<div class="dash-stat-row">
-      <span class="dsr-label" title="${name}">${short} <span style="color:var(--text-soft);font-size:.75rem">(${v.count})</span></span>
+      <span class="dsr-label" title="${name}">${name} <span style="color:var(--text-soft);font-size:.75rem">(${v.count})</span></span>
       <div class="dash-bar-track"><div class="dash-bar-fill c${i%7}" style="width:${pct}%"></div></div>
       <span class="dsr-val">${fmtNum(v.sum)}</span>
     </div>`;
@@ -4697,20 +4699,22 @@ function renderDashStatus(all){
       <div class="dash-legend">${legend}</div>
     </div>`;
 }
-function renderDashList(elId,data,icon){
+function renderDashList(elId,data,icon,color){
   const el=document.getElementById(elId);
   if(!data.length){el.innerHTML=`<div class="empty" style="padding:20px"><p>لا توجد بيانات</p></div>`;return;}
   const max=Math.max(...data.map(d=>d[1]));
   const sum=data.reduce((s,d)=>s+d[1],0);
+  const grad=color?`linear-gradient(90deg,${color},${color}99)`:null;
   el.innerHTML=data.map(([label,val],i)=>{
-    const pct=Math.round(val/max*100);
+    const pct=max?Math.round(val/max*100):0;
     const share=sum?Math.round(val/sum*100):0;
     const lbl=(STATE.lang==="en"&&typeof tr==="function")?tr(label):label;
     const short=lbl.length>26?lbl.substring(0,26)+"…":lbl;
+    const barStyle=grad?`width:${pct}%;background:${grad}`:`width:${pct}%`;
     return `<div class="dash-stat-row">
       <span class="dsr-label" title="${lbl}">${short}</span>
-      <div class="dash-bar-track"><div class="dash-bar-fill c${i%7}" style="width:${pct}%"></div></div>
-      <span class="dsr-val">${val} <span style="color:var(--text-soft);font-weight:500;font-size:.78rem">(${share}%)</span></span>
+      <div class="dash-bar-track"><div class="dash-bar-fill c${i%7}" style="${barStyle}"></div></div>
+      <span class="dsr-val">${fmtNum(val)} <span style="color:var(--text-soft);font-weight:500;font-size:.78rem">(${share}%)</span></span>
     </div>`;
   }).join("");
 }
