@@ -4558,14 +4558,18 @@ function renderDashboard(){
   const changed=(_dashLastTotal!==-1 && total!==_dashLastTotal);
   _dashLastTotal=total;
 
+  // الطلبات قيد المعالجة (مبدئي + تحت الدراسة + معاد لاستكمال النواقص)
+  const inProgressList=all.filter(r=>["preliminary","review","returned"].includes(r.status));
+  const inProgress=inProgressList.length;
+
   // KPIs
   document.getElementById("dashKpis").innerHTML=`
     ${dashKpi("📋","إجمالي الطلبات",total,
-        `${activeList.length} فعّال · ${rejectedList.length} مرفوض`,"t1",changed)}
-    ${dashKpi("💰","إجمالي المطالبات",dashMoney(claimed),
-        `${activeList.length} طلب فعّال · لا تشمل المرفوضة`,"t4",changed)}
+        `جميع الخدمات منذ 2020`,"t1",changed)}
+    ${dashKpi("⏳","قيد المعالجة",inProgress,
+        `${inProgressList.length} طلب نشط في المنظومة`,"t4",changed)}
     ${dashKpi("✅","إجمالي المصروف",dashMoney(disbursed),
-        `${disbursedList.length} طلب مصروف · ${rate}% من المطالبات`,"t2",changed)}
+        `${disbursedList.length} طلب مصروف`,"t2",changed)}
     ${dashKpi("⭐","الدعم الاستثنائي",dashMoney(exceptionalTotal),
         exceptionalList.length+" طلب استثنائي","t3",changed)}`;
 
