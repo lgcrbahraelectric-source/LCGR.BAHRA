@@ -1949,8 +1949,10 @@ const SERVICES = [
       {k:"supporting_entity",l:"الجهة الداعمة",t:"select",req:true,opts:["صندوق تنمية الموارد البشرية (HRDF)","برنامج الصادرات السعودية (Saudi Exports)","المؤسسة العامة للتأمينات الاجتماعية (GOSI)","هيئة المدن الصناعية ومناطق التقنية (MODON)"]},
       {k:"support_date",l:"تاريخ صرف الدعم",t:"date",req:true},
       {k:"company",l:"الشركة",t:"select",req:true,opts:COMPANIES},
-      {k:"price_offer",l:"المبلغ (ر.س)",t:"number",req:true},
-      {k:"doc_receipt",l:"ملف الفاتورة / التحويل / الإيصال",t:"file",req:true}
+      {k:"price_offer",l:"عرض السعر (ر.س)",t:"number",req:true},
+      {k:"claim_amount",l:"مبلغ المطالبة (ر.س)",t:"number",req:false},
+      {k:"disbursed_amount",l:"مبلغ الصرف (ر.س)",t:"number",req:false},
+      {k:"doc_receipt",l:"ملف الفاتورة / التحويل / الإيصال",t:"file",req:false}
     ]
   }
 ];
@@ -2765,7 +2767,9 @@ function editExceptional(reqId){
   setTimeout(()=>{
     const st=document.getElementById("fld_support_type"); if(st)st.value=f.support_type||"";
     const cp=document.getElementById("fld_company"); if(cp)cp.value=f.company||r.company||"";
-    const pr=document.getElementById("fld_price_offer"); if(pr)pr.value=f.price_offer||r.amount||"";
+    const pr=document.getElementById("fld_price_offer"); if(pr)pr.value=f.price_offer||r.priceOffer||r.amount||"";
+    const cl=document.getElementById("fld_claim_amount"); if(cl)cl.value=f.claim_amount||r.claimAmount||"";
+    const ds=document.getElementById("fld_disbursed_amount"); if(ds)ds.value=f.disbursed_amount||r.disbursed||"";
   },50);
 }
 function onFile(k){
@@ -2883,6 +2887,9 @@ function submitForm(){
     applicant:STATE.user, company:company,
     country:data.target_country||"-",
     amount:data.price_offer||"0",
+    priceOffer:data.price_offer||"0",           // عرض السعر (عمود K)
+    claimAmount:data.claim_amount||"0",          // مبلغ المطالبة (عمود L)
+    disbursed:data.disbursed_amount||"0",        // مبلغ الصرف (عمود M)
     currency:"ريال سعودي",
     status:(s.id==="exceptional"?"disbursed":DEFAULT_STATUS), note:"", date:new Date().toISOString().slice(0,10),
     fields:data, fileName:fileNames,
