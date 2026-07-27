@@ -1699,7 +1699,7 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
     </div>
   </div>
 
-  <!-- KPIs الضخمة -->
+  <!-- KPIs الضخمة: صرف الصادرات · استثنائي · HRDF · إجمالي الطلبات -->
   <div class="dash-kpis" id="dashKpis"></div>
 
   <!-- صف الرسوم الرئيسي: منحنى السنين + الحالات -->
@@ -1714,11 +1714,11 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
     </div>
   </div>
 
-  <!-- صف ثلاثي: الشركات + الأنواع + الدول -->
+  <!-- صف ثلاثي: الجهات الداعمة + نوع الحافز + الدول -->
   <div class="dash-grid-3">
     <div class="dash-panel">
-      <h3>🏢 حسب الشركة</h3>
-      <div id="dashCompany"></div>
+      <h3>🤝 الجهات الداعمة</h3>
+      <div id="dashSupport"></div>
     </div>
     <div class="dash-panel">
       <h3>📂 حسب نوع الحافز</h3>
@@ -4539,51 +4539,79 @@ function updateDashClock(){
 function renderDashboard(){
   const all=STATE.requests;
   const total=all.length;
-  const amt=r=>parseFloat(r.amount)||0;
+  const disb=r=>parseFloat(r.disbursed)||0;             // مبلغ الصرف الفعلي (عمود M)
+  const stype=r=>(r.supportType||"").toString().trim(); // نوع الدعم / الجهة الداعمة (عمود F)
 
-  // الطلبات الفعّالة = كل الطلبات ما عدا المرفوضة/الملغاة
-  // (كانت المطالبات تُحتسب على الكل، فيدخل فيها المرفوض ويضخّم الرقم)
-  const activeList=all.filter(r=>r.status!=="rejected");
-  const claimed=activeList.reduce((s,r)=>s+amt(r),0);
-  const rejectedList=all.filter(r=>r.status==="rejected");
-  const rejectedAmt=rejectedList.reduce((s,r)=>s+amt(r),0);
+  // تصنيف الجهة الداعمة
+  const isHRDF=r=>/hrdf|هدف|الموارد البشرية|صندوق تنمية/i.test(stype(r));
+  const isExceptional=r=> r.serviceId==="exceptional" || /استثنائي|التحول الرقمي/.test(r.serviceName||"") || /استثنائي/.test(stype(r));
+  const isExports=r=> !isHRDF(r) && !isExceptional(r);   // الصادرات = الباقي
+  const sumBy=(list,fn)=>list.reduce((s,r)=>s+fn(r),0);
 
-  const disbursedList=all.filter(r=>r.status==="disbursed");
-  const disbursed=disbursedList.reduce((s,r)=>s+amt(r),0);
-  const rate=claimed?Math.round(disbursed/claimed*100):0;
-  // إجمالي مبالغ الدعم الاستثنائي
-  const exceptionalList=all.filter(r=>r.serviceId==="exceptional"||r.serviceName==="الدعم الاستثنائي");
-  const exceptionalTotal=exceptionalList.reduce((s,r)=>s+amt(r),0);
+  const exportsList=all.filter(isExports), excList=all.filter(isExceptional), hrdfList=all.filter(isHRDF);
+  const exportsDisb=sumBy(exportsList,disb), excDisb=sumBy(excList,disb), hrdfDisb=sumBy(hrdfList,disb);
+
   // اكتشاف تغيّر العدد للفلاش
   const changed=(_dashLastTotal!==-1 && total!==_dashLastTotal);
   _dashLastTotal=total;
 
-  // الطلبات قيد المعالجة (مبدئي + تحت الدراسة + معاد لاستكمال النواقص)
-  const inProgressList=all.filter(r=>["preliminary","review","returned"].includes(r.status));
-  const inProgress=inProgressList.length;
-
-  // KPIs
+  // البطاقات (RTL: يمين←يسار): صرف الصادرات · استثنائي · HRDF · إجمالي الطلبات
   document.getElementById("dashKpis").innerHTML=`
-    ${dashKpi("📋","إجمالي الطلبات",total,
-        `جميع الخدمات منذ 2020`,"t1",changed)}
-    ${dashKpi("⏳","قيد المعالجة",inProgress,
-        `${inProgressList.length} طلب نشط في المنظومة`,"t4",changed)}
-    ${dashKpi("✅","إجمالي المصروف",dashMoney(disbursed),
-        `${disbursedList.length} طلب مصروف`,"t2",changed)}
-    ${dashKpi("⭐","الدعم الاستثنائي",dashMoney(exceptionalTotal),
-        exceptionalList.length+" طلب استثنائي","t3",changed)}`;
+    ${dashKpi("💵","إجمالي مبلغ الصرف للصادرات",dashMoney(exportsDisb),
+        `${exportsList.length} طلب صادرات`,"t2",changed)}
+    ${dashKpi("⭐","إجمالي مبالغ الدعم الاستثنائي",dashMoney(excDisb),
+        `${excList.length} طلب استثنائي`,"t3",changed)}
+    ${dashKpi("🎯","إجمالي مبالغ دعم HRDF",dashMoney(hrdfDisb),
+        `${hrdfList.length} طلب عبر صندوق الموارد`,"t4",changed)}
+    ${dashKpi("📋","إجمالي جميع الطلبات",total,
+        `جميع الخدمات منذ 2020`,"t1",changed)}`;
 
   // توزيع الحالات
   renderDashStatus(all);
-  // الشركات
-  renderDashList("dashCompany",groupBy(all,r=>(r.fields&&r.fields.company)||r.company||"-"),"🏢");
-  // الأنواع (الخدمات)
-  renderDashList("dashType",groupBy(all,r=>r.serviceName),"📂");
-  // الدول
-  renderDashList("dashCountry",groupBy(all,r=>r.country).slice(0,7),"🌍");
+  // الجهات الداعمة (نوع الدعم) + إجمالي مبلغ الصرف لكل جهة
+  renderDashSupport(all,disb,stype);
+  // حسب نوع الحافز (اسم الخدمة) — بإجمالي مبلغ الصرف
+  renderDashList("dashType",groupBySum(all,r=>r.serviceName,disb),"📂","#f0b429");
+  // أعلى الدول
+  renderDashList("dashCountry",groupBy(all,r=>r.country).slice(0,7),"🌍","#29c1cf");
   // منحنى السنوات
   renderDashYearChart(all);
   if(STATE.lang==="en") setTimeout(applyTranslation,0);
+}
+
+/* تجميع مع جمع قيمة (بدل العدّ) — يرجّع [label,total] مرتّبة تنازلياً */
+function groupBySum(arr,keyFn,valFn){
+  const m={};
+  arr.forEach(r=>{const k=keyFn(r)||"-"; m[k]=(m[k]||0)+(valFn(r)||0);});
+  return Object.entries(m).filter(([k,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+}
+
+/* لوحة الجهات الداعمة: كل جهة (نوع دعم) + عدد الطلبات + إجمالي مبلغ الصرف */
+function renderDashSupport(all,disb,stype){
+  const el=document.getElementById("dashSupport");
+  if(!el) return;
+  const m={};
+  all.forEach(r=>{
+    const k=stype(r)||"غير محدد";
+    if(!m[k]) m[k]={count:0,sum:0};
+    m[k].count++; m[k].sum+=disb(r);
+  });
+  const rows=Object.entries(m).sort((a,b)=>b[1].sum-a[1].sum || b[1].count-a[1].count);
+  if(!rows.length || (rows.length===1 && rows[0][0]==="غير محدد" && rows[0][1].sum===0)){
+    el.innerHTML=`<div class="empty" style="padding:22px;text-align:center"><div class="ei">🤝</div><p>لم تُعبّأ الجهات الداعمة بعد</p></div>`;
+    return;
+  }
+  const maxSum=Math.max(1,...rows.map(([,v])=>v.sum));
+  const cols=["#1a7e42","#0ea5a4","#d97706","#2563eb","#7c3aed","#db2777","#0891b2"];
+  el.innerHTML=rows.map(([name,v],i)=>{
+    const pct=Math.round(v.sum/maxSum*100);
+    const short=name.length>24?name.substring(0,24)+"…":name;
+    return `<div class="dash-stat-row">
+      <span class="dsr-label" title="${name}">${short} <span style="color:var(--text-soft);font-size:.75rem">(${v.count})</span></span>
+      <div class="dash-bar-track"><div class="dash-bar-fill c${i%7}" style="width:${pct}%"></div></div>
+      <span class="dsr-val">${fmtNum(v.sum)}</span>
+    </div>`;
+  }).join("");
 }
 function dashMoney(n){
   return `${fmtNum(n)}<span class="dk-cur">ريال</span>`;
