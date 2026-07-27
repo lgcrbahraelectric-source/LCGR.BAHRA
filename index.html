@@ -2041,6 +2041,8 @@ function doLogin(){
     if(res&&res.ok&&res.user){
       // حفظ بيانات المصادقة في الذاكرة فقط (للعمليات الحساسة) - لا تُخزّن دائماً
       STATE._authUser=u; STATE._authPass=p;
+      STATE.loginUsername=u;   // اسم الدخول الحقيقي (للعمليات الحساسة)
+      setLS("ed_authuser", u);
       try{shapesReact("success");}catch(e){}
       setTimeout(()=>{ loginSuccess(res.user.name||u, res.user.role||"user"); },700);
     } else {
@@ -3695,9 +3697,11 @@ function esc(s){
 // التأكد من توفر بيانات المصادقة للعمليات الحساسة (تُطلب مرة بعد تحديث الصفحة)
 function ensureAuth(){
   if(STATE._authUser && STATE._authPass) return true;
+  // اسم الدخول الحقيقي (مو الاسم المعروض) — نستعيده من الجلسة إن فُقد
+  const loginName = STATE.loginUsername || getLS("ed_authuser") || STATE.user;
   const pw=prompt("لأسباب أمنية، الرجاء إعادة إدخال كلمة مرورك للتأكيد:");
   if(!pw){ toast("تم الإلغاء","err"); return false; }
-  STATE._authUser=STATE.user;
+  STATE._authUser=loginName;
   STATE._authPass=pw;
   return true;
 }
