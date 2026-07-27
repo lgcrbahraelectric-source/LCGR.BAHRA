@@ -1738,7 +1738,7 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
 
 /* ===== إعدادات ربط Google Sheets ===== */
 // ضع هنا رابط الـ Web App بعد نشر Apps Script (انظر التعليمات)
-const SHEET_API = "https://script.google.com/macros/s/AKfycbwqwLVi09RnZ0AXcbhCghFYp1cxOovUjqJ3M8PT-6PB7SYf3-75Eq3w3VIgOmJ6QEzg-w/exec";
+const SHEET_API = "https://script.google.com/macros/s/AKfycbyLsOHCJPtsadeWH5AONEUrNrlI16TB4Ce6Bza-Rnmfv64YWx0palXDTqIoBi7LoIjV7w/exec";
 // إعدادات Cloudinary لرفع الملفات
 const CLOUDINARY_CLOUD = "k0azlosx";
 const CLOUDINARY_PRESET = "bahra_incentives";
@@ -2852,6 +2852,9 @@ function submitForm(){
     if(r){
       r.company=data.company||r.company;
       r.amount=data.price_offer||r.amount;
+      r.priceOffer=data.price_offer||r.priceOffer||r.amount;
+      r.claimAmount=data.claim_amount||r.claimAmount||"";
+      r.disbursed=data.disbursed_amount||r.disbursed||"";
       r.fields=Object.assign({},r.fields,data);
       if(fileNames){ r.fileName=fileNames; }
       const newFiles=Object.values(files);
@@ -2859,12 +2862,12 @@ function submitForm(){
         closeForm(); toast("⏳ جاري رفع المرفق...","ok");
         uploadAttachments(newFiles, r.refNo, (links)=>{
           r.fileLinks=links; r.fields._fileLinks=links;
-          saveRequests(); pushToSheet(r);
+          saveRequests(); editInSheet(r);
           toast("✓ تم تحديث الطلب ("+r.refNo+")","ok");
           renderMyRequests(); if(STATE.role==="admin"||STATE.role==="reviewer")renderAdminTable();
         });
       } else {
-        saveRequests(); pushToSheet(r); closeForm();
+        saveRequests(); editInSheet(r); closeForm();
         toast("✓ تم تحديث الطلب ("+r.refNo+")","ok");
         renderMyRequests(); if(STATE.role==="admin"||STATE.role==="reviewer")renderAdminTable();
       }
@@ -5087,6 +5090,18 @@ function aiCall(task, data, cb){
 }
 function pushToSheet(req){
   jsonp("add",req,(res)=>{ if(res&&res.ok)console.log("saved to sheet"); });
+}
+function editInSheet(req){
+  // يعدّل الصف الموجود بالرقم الداخلي بدل إضافة صف جديد
+  jsonp("editRequest",{
+    refNo:req.refNo,
+    company:req.company,
+    supportType:(req.fields&&(req.fields.supporting_entity||req.fields.support_type))||req.supportType||"",
+    priceOffer:req.priceOffer||req.amount||"",
+    claimAmount:req.claimAmount||"",
+    disbursed:req.disbursed||"",
+    fields:req.fields||{}
+  },(res)=>{ if(res&&res.ok)console.log("edited in sheet"); });
 }
 function updateSheetStatus(req){
   jsonp("updateStatus",{
