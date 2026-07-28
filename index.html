@@ -446,7 +446,8 @@ tbody tr:hover{transform:translateX(-3px)}
 .kpi-card:hover{transform:translateY(-6px) scale(1.02);box-shadow:var(--shadow-hover)}
 .kpi-card .ic{position:absolute;left:20px;top:20px;width:50px;height:50px;border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;box-shadow:0 8px 18px rgba(20,40,30,.12), 0 1px 0 rgba(255,255,255,.4) inset}
 .kpi-card .lbl{color:var(--text-soft);font-size:.85rem;font-weight:600}
-.kpi-card .val{font-size:2.1rem;font-weight:800;margin-top:6px;background:var(--grad-primary);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.kpi-card .val{font-size:2.1rem;font-weight:800;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--grad-primary);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.kpi-card .val .cur-unit{font-size:.42em;font-weight:700;margin-inline-start:5px;-webkit-text-fill-color:var(--text-soft);color:var(--text-soft)}
 .kpi-card .chg{font-size:.78rem;margin-top:4px;font-weight:600}
 .up{color:#0a8c5c}.down{color:#e2231a}
 .kpi-card.b-green .ic{background:var(--grad-primary);color:#fff}
@@ -3064,12 +3065,12 @@ function renderAdminKpis(){
   const pending=all.filter(r=>r.status==="submitted"||r.status==="preliminary"||r.status==="review").length;
   const approved=all.filter(r=>r.status==="disbursed").length;
   const rejected=all.filter(r=>r.status==="rejected").length;
-  const total=all.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  const total=all.reduce((s,r)=>s+(parseFloat(r.disbursed)||0),0);
   document.getElementById("adminKpis").innerHTML=`
     ${kpiHTML("📋","إجمالي الطلبات",all.length,"b-green")}
     ${kpiHTML("⏳","قيد المعالجة",pending,"b-gold")}
     ${kpiHTML("✅","تم صرفها",approved,"b-blue")}
-    ${kpiHTML("💰","إجمالي المبالغ",fmtMoney(total),"b-red")}`;
+    ${kpiHTML("💰","إجمالي المصروف",fmtMoney(total),"b-red")}`;
 }
 function fillAdminFilters(){
   // تعبئة قوائم الخدمات والشركات (مرة واحدة)
@@ -4277,14 +4278,14 @@ function renderTimeChart(){
 }
 function renderReportKpis(){
   const all=STATE.requests;
-  const total=all.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  const total=all.reduce((s,r)=>s+(parseFloat(r.disbursed)||0),0);
   const approved=all.filter(r=>r.status==="disbursed").length;
   const rate=all.length?Math.round(approved/all.length*100):0;
   document.getElementById("reportKpis").innerHTML=`
     ${kpiHTML("📋","إجمالي الطلبات",all.length,"b-green")}
-    ${kpiHTML("💰","إجمالي المبالغ",fmtMoney(total),"b-gold")}
-    ${kpiHTML("✓","نسبة الاعتماد",rate+"%","b-blue")}
-    ${kpiHTML("🌍","عدد الدول",new Set(all.map(r=>r.country)).size,"b-red")}`;
+    ${kpiHTML("💰","إجمالي المصروف",fmtMoney(total),"b-gold")}
+    ${kpiHTML("✓","نسبة الصرف",rate+"%","b-blue")}
+    ${kpiHTML("🌍","عدد الدول",new Set(all.map(r=>r.country).filter(c=>c&&c!=="-")).size,"b-red")}`;
 }
 function renderHomeKpis(){
   const isAdmin=STATE.role==="admin"||STATE.role==="reviewer";
@@ -4361,7 +4362,7 @@ function kpiHTML(icon,label,val,cls,onClick){
 }
 function fmtMoney(v){
   const n=parseFloat(v)||0;
-  return n.toLocaleString("en-US")+" ر.س";
+  return n.toLocaleString("en-US")+'<span class="cur-unit">ر.س</span>';
 }
 function toast(msg,type){
   const t=document.getElementById("toast");
