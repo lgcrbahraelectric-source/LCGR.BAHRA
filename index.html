@@ -3039,15 +3039,18 @@ function renderMyRequests(){
 
   const thead=document.querySelector("#myReqTable thead");
   const tbody=document.querySelector("#myReqTable tbody");
-  thead.innerHTML=`<tr><th>رقم الطلب</th><th>الخدمة</th><th>الدولة</th><th>المبلغ</th><th>الحالة</th><th>التاريخ</th><th>إجراء</th></tr>`;
-  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="ei">📭</div><p>لا توجد طلبات مطابقة</p></div></td></tr>`; return; }
+  thead.innerHTML=`<tr><th>رقم الطلب</th><th>الخدمة</th><th>الجهة الداعمة</th><th>الدولة</th><th>المبلغ</th><th>الحالة</th><th>التاريخ</th><th>إجراء</th></tr>`;
+  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="ei">📭</div><p>لا توجد طلبات مطابقة</p></div></td></tr>`; return; }
   tbody.innerHTML=rows.map(r=>{
     const st=STATUS_MAP[r.status]||STATUS_MAP.submitted;
     const canComplete=((r.status==="preliminary"||r.status==="returned")&&r.applicant===STATE.user);
     const completeBtn=canComplete?` <button class="act-btn approve" onclick="openCompleteModal('${r.id}')">${r.status==="returned"?"↩️ استكمال النواقص":"📤 استكمال"}</button>`:"";
+    const isExc=(r.serviceId==="exceptional"||/استثنائي|التحول الرقمي/.test(r.serviceName||""));
+    const entity=(isExc&&r.entityName)?r.entityName:(r.supportType||"—");
     return `<tr class="clickable-row" onclick="viewDetail('${r.id}')">
       <td><b>${r.refNo}</b>${r.ministryRef?`<br><span style="font-size:.74rem;color:var(--primary)">🏛️ الصادرات: ${r.ministryRef}</span>`:""}</td>
       <td>${r.serviceName}</td>
+      <td><span style="font-size:.85rem">${entity}</span></td>
       <td>${r.country}</td>
       <td>${fmtMoney(r.amount)}</td>
       <td><span class="badge ${st.badge}">${st.label}</span></td>
@@ -3110,8 +3113,8 @@ function renderAdminTable(){
 
   const thead=document.querySelector("#adminTable thead");
   const tbody=document.querySelector("#adminTable tbody");
-  thead.innerHTML=`<tr><th>رقم الطلب</th><th>مقدم الطلب</th><th>الخدمة</th><th>الدولة</th><th>المبلغ</th><th>الحالة</th><th>الإجراءات</th></tr>`;
-  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="ei">📭</div><p>لا توجد طلبات مطابقة</p></div></td></tr>`; return; }
+  thead.innerHTML=`<tr><th>رقم الطلب</th><th>مقدم الطلب</th><th>الخدمة</th><th>الجهة الداعمة</th><th>الدولة</th><th>المبلغ</th><th>الحالة</th><th>الإجراءات</th></tr>`;
+  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="ei">📭</div><p>لا توجد طلبات مطابقة</p></div></td></tr>`; return; }
   tbody.innerHTML=rows.map(r=>{
     const st=STATUS_MAP[r.status]||STATUS_MAP.submitted;
     const nextStage=getNextStage(r.status);
@@ -3123,10 +3126,13 @@ function renderAdminTable(){
       actionBtns+=`<button class="act-btn reject" onclick="rejectRequest('${r.id}')">رفض</button>`;
     }
     actionBtns+=`<button class="act-btn" onclick="printRequestReport('${r.id}')">📄</button>`;
+    const isExc2=(r.serviceId==="exceptional"||/استثنائي|التحول الرقمي/.test(r.serviceName||""));
+    const entity2=(isExc2&&r.entityName)?r.entityName:(r.supportType||"—");
     return `<tr class="clickable-row" onclick="viewDetail('${r.id}')">
       <td><b>${r.refNo}</b>${r.ministryRef?`<br><span style="font-size:.74rem;color:var(--primary)">🏛️ الصادرات: ${r.ministryRef}</span>`:""}</td>
       <td>${r.applicant}</td>
       <td>${r.serviceName}</td>
+      <td><span style="font-size:.85rem">${entity2}</span></td>
       <td>${r.country}</td>
       <td>${fmtMoney(r.amount)}</td>
       <td><span class="badge ${st.badge}">${st.label}</span></td>
