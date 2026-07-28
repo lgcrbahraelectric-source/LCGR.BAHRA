@@ -2038,7 +2038,7 @@ function doLogin(){
     return;
   }
   // التحقق من الشيت
-  jsonp("login",{username:u,password:p},(res)=>{
+  postJSON("login",{username:u,password:p},(res)=>{
     if(res&&res.ok&&res.user){
       // حفظ بيانات المصادقة في الذاكرة فقط (للعمليات الحساسة) - لا تُخزّن دائماً
       STATE._authUser=u; STATE._authPass=p;
@@ -3663,7 +3663,7 @@ function confirmUser(){
   const btn=document.getElementById("uSaveBtn");
   btn.disabled=true; btn.textContent="جاري الحفظ...";
 
-  jsonp("saveUser",{username,name,email,password,role,authUser:STATE._authUser,authPass:STATE._authPass},(res)=>{
+  postJSON("saveUser",{username,name,email,password,role,authUser:STATE._authUser,authPass:STATE._authPass},(res)=>{
     btn.disabled=false; btn.textContent="✓ حفظ";
     if(res&&res.ok){
       toast(res.mode==="added"?"✅ تمت إضافة المستخدم":"✅ تم تحديث المستخدم","ok");
@@ -3680,7 +3680,7 @@ function deleteUserConfirm(username){
   if(username===STATE.user){toast("لا يمكنك حذف حسابك الحالي","err");return;}
   if(!ensureAuth()) return;
   if(!confirm("هل أنت متأكد من حذف المستخدم: "+username+"؟\nلا يمكن التراجع عن هذا الإجراء.")) return;
-  jsonp("deleteUser",{username,authUser:STATE._authUser,authPass:STATE._authPass},(res)=>{
+  postJSON("deleteUser",{username,authUser:STATE._authUser,authPass:STATE._authPass},(res)=>{
     if(res&&res.ok){
       toast("✅ تم حذف المستخدم","ok");
       renderUsers();
@@ -5088,6 +5088,23 @@ function jsonp(action,payload,cb){
   s.src=SHEET_API+"?"+params.toString();
   s.onerror=()=>{ if(cb)cb({ok:false,error:"network"}); };
   document.body.appendChild(s);
+}
+/* POST آمن للعمليات الحساسة (كلمات المرور لا تظهر في الرابط ولا سجلات الخادم).
+   نستخدم Content-Type: text/plain لتفادي preflight CORS مع Apps Script. */
+function postJSON(action,payload,cb){
+  if(SHEET_API.includes("PUT_YOUR")){ if(cb)cb({ok:false,offline:true}); return; }
+  fetch(SHEET_API,{
+    method:"POST",
+    headers:{"Content-Type":"text/plain;charset=utf-8"},
+    body:JSON.stringify(Object.assign({action:action},payload||{}))
+  })
+  .then(r=>r.json())
+  .then(res=>{ if(cb)cb(res); })
+  .catch(err=>{
+    // احتياطي: لو فشل POST (CORS/شبكة) نرجع لـ JSONP حتى لا تتعطّل العملية
+    console.warn("POST فشل، تحويل لـ JSONP:", err);
+    jsonp(action,payload,cb);
+  });
 }
 /* استدعاء الذكاء الاصطناعي */
 function aiCall(task, data, cb){
