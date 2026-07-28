@@ -4608,11 +4608,17 @@ function renderDashboard(){
 function renderDashTopValue(all){
   const el=document.getElementById("dashTopValue");
   if(!el) return;
-  const amt=r=>parseFloat(r.priceOffer)||parseFloat(r.amount)||0;
-  // نستثني المرفوضة — "أعلى قيمة" يجب أن يعرض إنجازات حقيقية لا طلبات مرفوضة
+  // الاستثنائي: من مبلغ الصرف (M) — الصادرات: من عرض السعر (K)
+  const isExc=r=> r.serviceId==="exceptional" || /استثنائي|التحول الرقمي/.test(r.serviceName||"");
+  const amt=r=> isExc(r) ? (parseFloat(r.disbursed)||0) : (parseFloat(r.priceOffer)||parseFloat(r.amount)||0);
+  // نستثني المرفوضة/الملغاة
   const top=all.filter(r=>r.status!=="rejected" && amt(r)>0)
     .sort((a,b)=>amt(b)-amt(a))
     .slice(0,7);
+  if(!top.length){
+    el.innerHTML=`<div class="empty" style="padding:20px;text-align:center"><p>لا توجد بيانات</p></div>`;
+    return;
+  }
   if(!top.length){
     el.innerHTML=`<div class="empty" style="padding:20px;text-align:center"><p>لا توجد بيانات</p></div>`;
     return;
