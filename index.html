@@ -1346,7 +1346,6 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
       <div style="display:flex;gap:8px;margin-bottom:22px;border-bottom:2px solid var(--border);padding-bottom:0">
         <button class="rep-tab active" id="rtab-overview" onclick="switchRepTab('overview')">📊 نظرة عامة</button>
         <button class="rep-tab" id="rtab-financial" onclick="switchRepTab('financial')">💰 مالي</button>
-        <button class="rep-tab" id="rtab-performance" onclick="switchRepTab('performance')">⚡ الأداء</button>
         <button class="rep-tab" id="rtab-myreport" onclick="switchRepTab('myreport')">👤 تقريري الشخصي</button>
       </div>
 
@@ -1426,7 +1425,10 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
         <div class="panel" style="margin-bottom:22px">
           <div class="panel-head" style="display:flex;justify-content:space-between;align-items:center">
             <h2>📑 سجل طلباتي الكامل</h2>
-            <button class="btn btn-primary" onclick="exportMyReportCSV()" style="font-size:.82rem;padding:7px 14px">📥 تصدير</button>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-primary" onclick="printMyReport()" style="font-size:.82rem;padding:7px 14px">📄 تقرير طلباتي</button>
+              <button class="btn btn-primary" onclick="exportMyReportCSV()" style="font-size:.82rem;padding:7px 14px">📥 تصدير</button>
+            </div>
           </div>
           <div style="padding:16px;overflow-x:auto" id="myRequestsTable"></div>
         </div>
@@ -3118,7 +3120,7 @@ function renderAdminTable(){
 
   const thead=document.querySelector("#adminTable thead");
   const tbody=document.querySelector("#adminTable tbody");
-  thead.innerHTML=`<tr><th>رقم الطلب</th><th>مقدم الطلب</th><th>الخدمة</th><th>الجهة الداعمة</th><th>الدولة</th><th>المبلغ</th><th>الحالة</th><th>الإجراءات</th></tr>`;
+  thead.innerHTML=`<tr><th>رقم الطلب</th><th>منشئ الطلب</th><th>الخدمة</th><th>الجهة الداعمة</th><th>المبلغ</th><th>الحالة</th><th>المراجع</th><th>الإجراءات</th></tr>`;
   if(!rows.length){ tbody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="ei">📭</div><p>لا توجد طلبات مطابقة</p></div></td></tr>`; return; }
   tbody.innerHTML=rows.map(r=>{
     const st=STATUS_MAP[r.status]||STATUS_MAP.submitted;
@@ -3138,9 +3140,9 @@ function renderAdminTable(){
       <td>${r.applicant}</td>
       <td>${r.serviceName}</td>
       <td><span style="font-size:.85rem">${entity2}</span></td>
-      <td>${r.country}</td>
       <td>${fmtMoney(r.amount)}</td>
       <td><span class="badge ${st.badge}">${st.label}</span></td>
+      <td><span style="font-size:.82rem;color:var(--text-soft)">${r.reviewer||"—"}</span></td>
       <td onclick="event.stopPropagation()">${actionBtns}</td>
     </tr>`;
   }).join("");
@@ -3164,6 +3166,7 @@ function advanceStatus(id){
     return;
   }
   r.status=next;
+  r.reviewer=STATE.user;   // تسجيل المراجع محلياً ليظهر فوراً
   saveRequests(); updateSheetStatus(r);
   renderAdminTable(); renderAdminKpis();
   toast("✓ تم نقل الطلب إلى: "+STATUS_MAP[next].label,"ok");
@@ -3246,6 +3249,7 @@ function confirmReject(){
   if(!_rejectId)return;
   const r=STATE.requests.find(x=>x.id===_rejectId); if(!r)return;
   r.status="rejected";
+  r.reviewer=STATE.user;
   r.note=document.getElementById("rejectReason").value.trim();
   saveRequests(); updateSheetStatus(r);
   closeRejectModal();
@@ -3256,6 +3260,7 @@ function setStatus(id,status){
   const r=STATE.requests.find(x=>x.id===id); if(!r)return;
   const wasDisbursed=r.status==="disbursed";
   r.status=status;
+  r.reviewer=STATE.user;
   saveRequests(); updateSheetStatus(r);
   renderAdminTable(); renderAdminKpis();
   if(status==="disbursed" && !wasDisbursed){ celebrate(); }
@@ -4177,22 +4182,45 @@ function groupAmt(arr,fn){
 function exportReportCSV(){
   const all=STATE.requests;
   if(!all.length){toast("لا توجد بيانات للتصدير","err");return;}
-  const headers=["رقم الطلب","الخدمة","الشركة","الدولة","المبلغ","الحالة","التاريخ","الجهة الداعمة"];
-  const rows=all.map(r=>[
-    r.refNo||"",r.serviceName||"",
-    (r.fields&&r.fields.company)||r.company||"",
-    r.country||"",parseFloat(r.amount)||0,
-    (STATUS_MAP[r.status]||STATUS_MAP.submitted).label,
-    r.date||"",(r.fields&&r.fields.supporting_entity)||""
-  ]);
+  // نفس ترتيب أعمدة الشيت بالضبط (19 عمود)
+  const headers=["م","الرقم الداخلي","رقم الوزارة","كود الخدمة","اسم الخدمة",
+    "نوع الدعم","مقدم الطلب","الشركة","الدولة","اسم المعرض/الجهة",
+    "عرض السعر","مبلغ المطالبة","مبلغ الصرف",
+    "حالة الطلب","تاريخ الطلب","تاريخ انتهاء الخدمة","الملاحظات","المرفقات","بيانات إضافية"];
+  const rows=all.map((r,i)=>{
+    const f=r.fields||{};
+    const isExc=(r.serviceId==="exceptional"||/استثنائي|التحول الرقمي/.test(r.serviceName||""));
+    const entity=(isExc&&r.entityName)?r.entityName:(r.entityName||f.supporting_entity||f.exhibition_name||"");
+    return [
+      i+1,
+      r.refNo||"",
+      r.ministryRef||"",
+      r.code||"",
+      r.serviceName||"",
+      r.supportType||f.support_type||"",
+      r.applicant||"",
+      (f.company)||r.company||"",
+      r.country||"",
+      entity,
+      parseFloat(r.priceOffer)||parseFloat(r.amount)||0,
+      parseFloat(r.claimAmount)||0,
+      parseFloat(r.disbursed)||0,
+      (STATUS_MAP[r.status]||STATUS_MAP.submitted).label,
+      r.date||"",
+      f.end_date||"",
+      r.note||"",
+      r.fileName||((r.fileLinks&&r.fileLinks.map(x=>x.name).join("، "))||""),
+      JSON.stringify(f)
+    ];
+  });
   const csv="\uFEFF"+[headers,...rows].map(row=>row.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
   const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
   const url=URL.createObjectURL(blob);
   const a=document.createElement("a");
-  a.href=url; a.download="تقرير_حوافز_بحرة_"+new Date().toISOString().slice(0,10)+".csv";
+  a.href=url; a.download="قاعدة_بيانات_المنصة_"+new Date().toISOString().slice(0,10)+".csv";
   document.body.appendChild(a);a.click();
   setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},100);
-  toast("✅ تم تصدير التقرير","ok");
+  toast("✅ تم تصدير قاعدة البيانات بنفس تنسيق الشيت","ok");
 }
 
 function exportMyReportCSV(){
@@ -4294,9 +4322,7 @@ function renderReportKpis(){
   const rate=all.length?Math.round(approved/all.length*100):0;
   document.getElementById("reportKpis").innerHTML=`
     ${kpiHTML("📋","إجمالي الطلبات",all.length,"b-green")}
-    ${kpiHTML("💰","إجمالي المصروف",fmtMoney(total),"b-gold")}
-    ${kpiHTML("✓","نسبة الصرف",rate+"%","b-blue")}
-    ${kpiHTML("🌍","عدد الدول",new Set(all.map(r=>r.country).filter(c=>c&&c!=="-")).size,"b-red")}`;
+    ${kpiHTML("💰","إجمالي المصروف",fmtMoney(total),"b-gold")}`;
 }
 function renderHomeKpis(){
   const isAdmin=STATE.role==="admin"||STATE.role==="reviewer";
@@ -4666,7 +4692,11 @@ function renderDashSupport(all,disb,stype){
   if(!el) return;
   const m={};
   all.forEach(r=>{
-    const k=stype(r)||"غير محدد";   // اسم الجهة الفعلي: هيئة تنمية الصادرات / مدن / HRDF
+    let k=stype(r)||"غير محدد";   // اسم الجهة الفعلي
+    // اختصار الأسماء الرسمية الطويلة لأسماء واضحة
+    if(/مدن|MODON/i.test(k)) k="هيئة المدن الصناعية (مدن)";
+    else if(/hrdf|هدف|الموارد البشرية|صندوق تنمية/i.test(k)) k="صندوق تنمية الموارد (HRDF)";
+    else if(/تنمية الصادرات|Saudi Exports|برنامج الصادرات/i.test(k)) k="هيئة تنمية الصادرات";
     if(!m[k]) m[k]={count:0,sum:0};
     m[k].count++; m[k].sum+=disb(r);
   });
@@ -4994,6 +5024,70 @@ function sendChat(){
   });
 }
 
+function printMyReport(){
+  const my=STATE.requests.filter(r=>r.applicant===STATE.user);
+  if(!my.length){toast("لا توجد طلبات","err");return;}
+  const money=n=>(parseFloat(n)||0).toLocaleString("en-US")+" ر.س";
+  const totalOffer=my.reduce((s,r)=>s+(parseFloat(r.priceOffer)||parseFloat(r.amount)||0),0);
+  const totalDisb=my.reduce((s,r)=>s+(parseFloat(r.disbursed)||0),0);
+  const disbursedCount=my.filter(r=>r.status==="disbursed").length;
+  const rowsHtml=my.map((r,i)=>{
+    const st=(STATUS_MAP[r.status]||STATUS_MAP.submitted).label;
+    return `<tr>
+      <td>${i+1}</td>
+      <td>${r.refNo||""}</td>
+      <td>${r.serviceName||""}</td>
+      <td>${(r.fields&&r.fields.company)||r.company||""}</td>
+      <td>${money(r.priceOffer||r.amount)}</td>
+      <td>${money(r.disbursed)}</td>
+      <td>${st}</td>
+      <td>${fmtDate(r.date)||""}</td>
+    </tr>`;
+  }).join("");
+  const now=new Date().toLocaleDateString("ar-SA",{year:"numeric",month:"long",day:"numeric"});
+  const html=`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8">
+  <title>تقرير طلباتي - ${STATE.user}</title>
+  <style>
+    body{font-family:'Segoe UI',Tahoma,sans-serif;padding:30px;color:#1c2b25}
+    .head{text-align:center;border-bottom:3px solid #1a5e3a;padding-bottom:16px;margin-bottom:20px}
+    .head h1{color:#1a5e3a;margin:0 0 6px}
+    .head p{color:#666;margin:2px 0;font-size:14px}
+    .cards{display:flex;gap:14px;margin:20px 0}
+    .card{flex:1;background:#f4f6f5;border:1px solid #dce3df;border-radius:10px;padding:14px;text-align:center}
+    .card .v{font-size:1.5rem;font-weight:800;color:#1a5e3a}
+    .card .l{font-size:.8rem;color:#666;margin-top:4px}
+    table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px}
+    th,td{border:1px solid #dce3df;padding:8px;text-align:center}
+    th{background:#1a5e3a;color:#fff}
+    tr:nth-child(even){background:#f8faf9}
+    .foot{margin-top:24px;text-align:center;color:#999;font-size:12px;border-top:1px solid #eee;padding-top:12px}
+    @media print{.noprint{display:none}}
+  </style></head><body>
+  <div class="head">
+    <h1>تقرير طلبات الحوافز</h1>
+    <p>مجموعة بحرة للكهرباء — برنامج الصادرات السعودية</p>
+    <p><b>منشئ الطلبات:</b> ${STATE.user} &nbsp;|&nbsp; <b>التاريخ:</b> ${now}</p>
+  </div>
+  <div class="cards">
+    <div class="card"><div class="v">${my.length}</div><div class="l">إجمالي طلباتي</div></div>
+    <div class="card"><div class="v">${disbursedCount}</div><div class="l">تم صرفها</div></div>
+    <div class="card"><div class="v">${money(totalOffer)}</div><div class="l">إجمالي عروض الأسعار</div></div>
+    <div class="card"><div class="v">${money(totalDisb)}</div><div class="l">إجمالي المصروف</div></div>
+  </div>
+  <table>
+    <thead><tr><th>م</th><th>رقم الطلب</th><th>الخدمة</th><th>الشركة</th><th>عرض السعر</th><th>مبلغ الصرف</th><th>الحالة</th><th>التاريخ</th></tr></thead>
+    <tbody>${rowsHtml}</tbody>
+  </table>
+  <div class="foot">تقرير تلقائي من منصة دعم الحوافز — ${now}</div>
+  <div class="noprint" style="text-align:center;margin-top:20px">
+    <button onclick="window.print()" style="background:#1a5e3a;color:#fff;border:0;padding:10px 24px;border-radius:8px;cursor:pointer;font-size:15px">🖨️ طباعة / حفظ PDF</button>
+  </div>
+  </body></html>`;
+  const w=window.open("","_blank");
+  w.document.write(html); w.document.close();
+  toast("✅ تم إنشاء تقرير طلباتك","ok");
+}
+
 function printRequestReport(id){
   const r=STATE.requests.find(x=>x.id===id); if(!r)return;
   const s=SERVICES.find(x=>x.id===r.serviceId);
@@ -5178,6 +5272,7 @@ function updateSheetStatus(req){
   jsonp("updateStatus",{
     id:req.id, refNo:req.refNo, status:req.status, note:req.note,
     ministryRef:req.ministryRef||"",
+    reviewer:STATE.user||"",           // اسم المراجع الذي حرّك الطلب
     completion:req.completion||null    // نرسل مستندات الاستكمال للشيت
   },()=>{});
 }
