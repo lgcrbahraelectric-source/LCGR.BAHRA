@@ -4628,10 +4628,12 @@ function renderDashTopValue(all){
   el.innerHTML=top.map((r,i)=>{
     const v=amt(r);
     const pct=Math.round(v/max*100);
-    const lbl=(r.serviceName||"-").length>18?(r.serviceName||"-").substring(0,18)+"…":(r.serviceName||"-");
-    const sub=r.company||"-";
+    // العنوان: اسم المعرض/الجهة (مميّز) بدل اسم الخدمة (مكرّر)
+    const title=(r.entityName||r.serviceName||"-").toString().trim()||"-";
+    const lbl=title.length>22?title.substring(0,22)+"…":title;
+    const sub=[r.company, r.country].filter(x=>x&&x!=="-").join(" · ")||"-";
     return `<div class="dash-stat-row">
-      <span class="dsr-label" title="${r.serviceName} — ${sub}">
+      <span class="dsr-label" title="${title} — ${sub}">
         <span style="color:${colors[i%7]};font-size:1rem">🏅</span> ${lbl}
         <span style="color:var(--text-soft);font-size:.75rem;font-weight:500">${sub}</span>
       </span>
