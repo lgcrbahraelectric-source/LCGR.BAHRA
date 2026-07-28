@@ -1726,8 +1726,8 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
       <div id="dashType"></div>
     </div>
     <div class="dash-panel">
-      <h3>🌍 أعلى الدول</h3>
-      <div id="dashCountry"></div>
+      <h3>🏆 أعلى الطلبات قيمةً</h3>
+      <div id="dashTopValue"></div>
     </div>
   </div>
 </div>
@@ -4597,14 +4597,43 @@ function renderDashboard(){
   renderDashSupport(all,disb,stype);
   // حسب نوع الحافز — عدد الطلبات لكل خدمة (الشكل الأصلي)
   renderDashList("dashType",groupBy(all,r=>r.serviceName),"📂","#f0b429");
-  // أعلى الدول
-  renderDashList("dashCountry",groupBy(all,r=>r.country).slice(0,7),"🌍","#29c1cf");
+  // أعلى الطلبات قيمةً (عرض السعر) — يبرز أكبر الإنجازات
+  renderDashTopValue(all);
   // منحنى السنوات
   renderDashYearChart(all);
   if(STATE.lang==="en") setTimeout(applyTranslation,0);
 }
 
 /* تجميع مع جمع قيمة (بدل العدّ) — يرجّع [label,total] مرتّبة تنازلياً */
+function renderDashTopValue(all){
+  const el=document.getElementById("dashTopValue");
+  if(!el) return;
+  const amt=r=>parseFloat(r.priceOffer)||parseFloat(r.amount)||0;
+  const top=all.filter(r=>amt(r)>0)
+    .sort((a,b)=>amt(b)-amt(a))
+    .slice(0,7);
+  if(!top.length){
+    el.innerHTML=`<div class="empty" style="padding:20px;text-align:center"><p>لا توجد بيانات</p></div>`;
+    return;
+  }
+  const max=amt(top[0]);
+  const colors=["#1a7e42","#29c1cf","#f0b429","#5b8def","#7c3aed","#db2777","#0891b2"];
+  el.innerHTML=top.map((r,i)=>{
+    const v=amt(r);
+    const pct=Math.round(v/max*100);
+    const lbl=(r.serviceName||"-").length>18?(r.serviceName||"-").substring(0,18)+"…":(r.serviceName||"-");
+    const sub=r.company||"-";
+    return `<div class="dash-stat-row">
+      <span class="dsr-label" title="${r.serviceName} — ${sub}">
+        <span style="color:${colors[i%7]};font-size:1rem">🏅</span> ${lbl}
+        <span style="color:var(--text-soft);font-size:.75rem;font-weight:500">${sub}</span>
+      </span>
+      <div class="dash-bar-track"><div class="dash-bar-fill" style="width:${pct}%;background:${colors[i%7]}"></div></div>
+      <span class="dsr-val">${fmtNum(v)}</span>
+    </div>`;
+  }).join("");
+}
+
 function groupBySum(arr,keyFn,valFn){
   const m={};
   arr.forEach(r=>{const k=keyFn(r)||"-"; m[k]=(m[k]||0)+(valFn(r)||0);});
