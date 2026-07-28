@@ -4609,7 +4609,8 @@ function renderDashTopValue(all){
   const el=document.getElementById("dashTopValue");
   if(!el) return;
   const amt=r=>parseFloat(r.priceOffer)||parseFloat(r.amount)||0;
-  const top=all.filter(r=>amt(r)>0)
+  // نستثني المرفوضة — "أعلى قيمة" يجب أن يعرض إنجازات حقيقية لا طلبات مرفوضة
+  const top=all.filter(r=>r.status!=="rejected" && amt(r)>0)
     .sort((a,b)=>amt(b)-amt(a))
     .slice(0,7);
   if(!top.length){
