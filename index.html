@@ -3046,8 +3046,8 @@ function renderMyRequests(){
 
   const thead=document.querySelector("#myReqTable thead");
   const tbody=document.querySelector("#myReqTable tbody");
-  thead.innerHTML=`<tr><th>رقم الطلب</th><th>الخدمة</th><th>الجهة الداعمة</th><th>الدولة</th><th>المبلغ</th><th>الحالة</th><th>التاريخ</th><th>إجراء</th></tr>`;
-  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="ei">📭</div><p>لا توجد طلبات مطابقة</p></div></td></tr>`; return; }
+  thead.innerHTML=`<tr><th>رقم الطلب</th><th>الخدمة</th><th>الجهة الداعمة</th><th>الحالة</th><th>التاريخ</th><th>إجراء</th></tr>`;
+  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="ei">📭</div><p>لا توجد طلبات مطابقة</p></div></td></tr>`; return; }
   tbody.innerHTML=rows.map(r=>{
     const st=STATUS_MAP[r.status]||STATUS_MAP.submitted;
     const canComplete=((r.status==="preliminary"||r.status==="returned")&&r.applicant===STATE.user);
@@ -3058,8 +3058,6 @@ function renderMyRequests(){
       <td><b>${r.refNo}</b>${r.ministryRef?`<br><span style="font-size:.74rem;color:var(--primary)">🏛️ الصادرات: ${r.ministryRef}</span>`:""}</td>
       <td>${r.serviceName}</td>
       <td><span style="font-size:.85rem">${entity}</span></td>
-      <td>${r.country}</td>
-      <td>${fmtMoney(r.amount)}</td>
       <td><span class="badge ${st.badge}">${st.label}</span></td>
       <td>${fmtDate(r.date)}</td>
       <td onclick="event.stopPropagation()"><button class="act-btn" onclick="viewDetail('${r.id}')">عرض</button>${completeBtn} <button class="act-btn" onclick="printRequestReport('${r.id}')">📄 تقرير</button></td>
@@ -3478,6 +3476,14 @@ function viewDetail(id){
     html+=`<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:8px"><span style="color:var(--text-soft)">المرفقات</span><b>📎 ${r.fileName}</b></div>`;
   }
   if(r.currency) html+=`<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:8px"><span style="color:var(--text-soft)">العملة</span><b>${r.currency}</b></div>`;
+  // القسم المالي: عرض السعر · المطالبة · الصرف · الدولة
+  const money=n=>(parseFloat(n)||0).toLocaleString("en-US")+" ر.س";
+  html+=`<div style="background:var(--bg);padding:12px 14px;border-radius:12px;margin-top:4px;display:grid;gap:8px">
+    ${(r.country&&r.country!=="-")?`<div style="display:flex;justify-content:space-between"><span style="color:var(--text-soft)">الدولة</span><b>${r.country}</b></div>`:""}
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--text-soft)">عرض السعر</span><b>${money(r.priceOffer||r.amount)}</b></div>
+    ${(parseFloat(r.claimAmount)>0)?`<div style="display:flex;justify-content:space-between"><span style="color:var(--text-soft)">مبلغ المطالبة</span><b>${money(r.claimAmount)}</b></div>`:""}
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--text-soft)">مبلغ الصرف</span><b style="color:var(--green)">${money(r.disbursed)}</b></div>
+  </div>`;
   const st=STATUS_MAP[r.status]||STATUS_MAP.submitted;
   html+=`<div style="display:flex;justify-content:space-between;padding-top:6px"><span style="color:var(--text-soft)">الحالة</span><span class="badge ${st.badge}">${st.label}</span></div>`;
   if(r.note)html+=`<div style="background:var(--bg);padding:12px;border-radius:10px;margin-top:6px"><b>ملاحظة المراجع:</b> ${r.note}</div>`;
@@ -3951,17 +3957,19 @@ function renderMyReportTab(){
     if(!myReqs.length){mt.innerHTML=`<div class="empty"><p>لا توجد طلبات بعد</p></div>`;return;}
     mt.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:.85rem">
       <thead><tr style="background:var(--bg2)">
-        ${["رقم الطلب","الخدمة","الدولة","المبلغ","الحالة","التاريخ"].map(h=>`<th style="padding:10px;text-align:right;border-bottom:1px solid var(--border)">${h}</th>`).join("")}
+        ${["رقم الطلب","الخدمة","الجهة الداعمة","الحالة","التاريخ",""].map(h=>`<th style="padding:10px;text-align:right;border-bottom:1px solid var(--border)">${h}</th>`).join("")}
       </tr></thead>
       <tbody>${myReqs.map(r=>{
         const st=STATUS_MAP[r.status]||STATUS_MAP.submitted;
-        return`<tr style="border-bottom:1px solid var(--border)">
+        const isExc=(r.serviceId==="exceptional"||/استثنائي|التحول الرقمي/.test(r.serviceName||""));
+        const entity=(isExc&&r.entityName)?r.entityName:(r.supportType||"—");
+        return`<tr class="clickable-row" onclick="viewDetail('${r.id}')" style="border-bottom:1px solid var(--border);cursor:pointer">
           <td style="padding:9px;font-weight:700;color:var(--primary)">${r.refNo||"-"}</td>
           <td style="padding:9px">${r.serviceName||"-"}</td>
-          <td style="padding:9px">${r.country||"-"}</td>
-          <td style="padding:9px;color:var(--green);font-weight:600">${r.amount?fmtNum(parseFloat(r.amount))+" ﷼":"-"}</td>
+          <td style="padding:9px;font-size:.82rem">${entity}</td>
           <td style="padding:9px"><span class="badge ${st.badge}">${st.label}</span></td>
           <td style="padding:9px">${r.date||"-"}</td>
+          <td style="padding:9px" onclick="event.stopPropagation()"><button class="act-btn" onclick="viewDetail('${r.id}')">عرض</button></td>
         </tr>`;
       }).join("")}</tbody>
     </table>`;
