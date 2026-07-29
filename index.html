@@ -4782,6 +4782,9 @@ function groupBySum(arr,keyFn,valFn){
 function renderDashSupport(all,disb,stype){
   const el=document.getElementById("dashSupport");
   if(!el) return;
+  // نفس منطق الأعمدة: الصادرات من عرض السعر (K)، الاستثنائي/HRDF من مبلغ الصرف (M)
+  const isExc=r=> r.serviceId==="exceptional" || /استثنائي|التحول الرقمي/.test(r.serviceName||"");
+  const amt=r=> isExc(r) ? (parseFloat(r.disbursed)||0) : (parseFloat(r.priceOffer)||parseFloat(r.amount)||0);
   const m={};
   all.forEach(r=>{
     let k=stype(r)||"غير محدد";   // اسم الجهة الفعلي
@@ -4793,7 +4796,7 @@ function renderDashSupport(all,disb,stype){
     else if(/GOSI|التأمينات/i.test(k)) k="التأمينات (GOSI)";
     else if(/تنمية الصادرات|Saudi Exports|برنامج الصادرات/i.test(k)) k="هيئة تنمية الصادرات";
     if(!m[k]) m[k]={count:0,sum:0};
-    m[k].count++; m[k].sum+=disb(r);
+    m[k].count++; m[k].sum+=amt(r);
   });
   const rows=Object.entries(m).sort((a,b)=>b[1].sum-a[1].sum || b[1].count-a[1].count);
   const totalSum=rows.reduce((s,[,v])=>s+v.sum,0);
@@ -5500,3 +5503,4 @@ window.addEventListener("resize",()=>{
 </script>
 </body>
 </html>
+            
