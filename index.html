@@ -1240,8 +1240,8 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
             <select id="myReqServiceFilter" onchange="renderMyRequests()" class="flt-select">
               <option value="">كل الخدمات</option>
             </select>
-            <select id="myReqCountryFilter" onchange="renderMyRequests()" class="flt-select">
-              <option value="">كل الدول</option>
+            <select id="myReqEntityFilter" onchange="renderMyRequests()" class="flt-select">
+              <option value="">كل الجهات الداعمة</option>
             </select>
             <select id="myReqSort" onchange="renderMyRequests()" class="flt-select">
               <option value="newest">الأحدث أولاً</option>
@@ -1285,6 +1285,9 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
             </select>
             <select id="adminCompanyFilter" onchange="renderAdminTable()" class="flt-select">
               <option value="">كل الشركات</option>
+            </select>
+            <select id="adminEntityFilter" onchange="renderAdminTable()" class="flt-select">
+              <option value="">كل الجهات الداعمة</option>
             </select>
             <select id="adminSort" onchange="renderAdminTable()" class="flt-select">
               <option value="newest">الأحدث أولاً</option>
@@ -1954,7 +1957,7 @@ const SERVICES = [
     icon:"⭐", code:"EXCP", adminOnly:true,
     fields:[
       {k:"support_type",l:"نوع الدعم",t:"text",req:true},
-      {k:"supporting_entity",l:"الجهة الداعمة",t:"select",req:true,opts:["صندوق تنمية الموارد البشرية (HRDF)","برنامج الصادرات السعودية (Saudi Exports)","المؤسسة العامة للتأمينات الاجتماعية (GOSI)","هيئة المدن الصناعية ومناطق التقنية (MODON)"]},
+      {k:"supporting_entity",l:"الجهة الداعمة",t:"select",req:true,opts:["صندوق تنمية الموارد البشرية (HRDF)","برنامج الصادرات السعودية (Saudi Exports)","المؤسسة العامة للتأمينات الاجتماعية (GOSI)","هيئة المدن الصناعية ومناطق التقنية (MODON)","الهيئة العامة للمنشآت الصغيرة والمتوسطة (منشآت)","وزارة الصناعة والثروة المعدنية","أخرى"]},
       {k:"support_date",l:"تاريخ صرف الدعم",t:"date",req:true},
       {k:"company",l:"الشركة",t:"select",req:true,opts:COMPANIES},
       {k:"price_offer",l:"عرض السعر (ر.س)",t:"number",req:true},
@@ -2686,11 +2689,15 @@ function fieldHTML(f){
     </div>`;
   }
   else if(f.t==="select"){
-    const onCh = f.k==="company" ? ` onchange="onCompanyChange()"` : "";
+    const onCh = f.k==="company" ? ` onchange="onCompanyChange()"`
+               : f.k==="supporting_entity" ? ` onchange="onEntityChange()"` : "";
     input=`<select id="fld_${f.k}"${onCh}><option value="">اختر...</option>`+
       f.opts.map(o=>`<option value="${o}">${o}</option>`).join("")+`</select>`;
     if(f.k==="company"){
       input+=`<input type="text" id="other_company" placeholder="اكتب اسم الشركة..." style="display:none;margin-top:10px">`;
+    }
+    if(f.k==="supporting_entity"){
+      input+=`<input type="text" id="other_entity" placeholder="اكتب اسم الجهة الداعمة..." style="display:none;margin-top:10px">`;
     }
   }
   else if(f.t==="file"){
@@ -2733,6 +2740,13 @@ function onCbChange(k,changedEl){
 function onCompanyChange(){
   const sel=document.getElementById("fld_company");
   const inp=document.getElementById("other_company");
+  if(!sel||!inp)return;
+  if(sel.value==="أخرى"){ inp.style.display="block"; inp.focus(); }
+  else { inp.style.display="none"; inp.value=""; }
+}
+function onEntityChange(){
+  const sel=document.getElementById("fld_supporting_entity");
+  const inp=document.getElementById("other_entity");
   if(!sel||!inp)return;
   if(sel.value==="أخرى"){ inp.style.display="block"; inp.focus(); }
   else { inp.style.display="none"; inp.value=""; }
@@ -2841,6 +2855,13 @@ function submitForm(){
       const customName=otherInp?otherInp.value.trim():"";
       if(!customName){ ok=false; if(!firstBad)firstBad=otherInp; if(otherInp)otherInp.style.borderColor="var(--red)"; }
       else { v=customName; if(otherInp)otherInp.style.borderColor=""; }
+    }
+    // لو الجهة الداعمة "أخرى" استبدلها بالاسم المكتوب
+    if(f.k==="supporting_entity" && v==="أخرى"){
+      const otherE=document.getElementById("other_entity");
+      const customE=otherE?otherE.value.trim():"";
+      if(!customE){ ok=false; if(!firstBad)firstBad=otherE; if(otherE)otherE.style.borderColor="var(--red)"; }
+      else { v=customE; if(otherE)otherE.style.borderColor=""; }
     }
     if(f.req&&!v){ ok=false; if(!firstBad)firstBad=el; if(el)el.style.borderColor="var(--red)"; }
     else if(el) el.style.borderColor="";
@@ -3012,23 +3033,34 @@ function sortNewestFirst(arr){
   });
 }
 
+function reqEntity(r){
+  const isExc=(r.serviceId==="exceptional"||/استثنائي|التحول الرقمي/.test(r.serviceName||""));
+  let k=(isExc&&r.entityName)?r.entityName:(r.supportType||"");
+  if(/مدن|MODON/i.test(k)) return "هيئة المدن الصناعية (مدن)";
+  if(/hrdf|هدف|الموارد البشرية|صندوق تنمية/i.test(k)) return "صندوق تنمية الموارد (HRDF)";
+  if(/منشآت|منشات|المنشآت الصغيرة/i.test(k)) return "منشآت";
+  if(/الصناعة|الثروة المعدنية/i.test(k)) return "وزارة الصناعة";
+  if(/GOSI|التأمينات/i.test(k)) return "التأمينات (GOSI)";
+  if(/تنمية الصادرات|Saudi Exports|برنامج الصادرات|صادرات/i.test(k)) return "هيئة تنمية الصادرات";
+  return k||"غير محدد";
+}
 function fillMyReqFilters(rows){
   const svcSel=document.getElementById("myReqServiceFilter");
-  const cntSel=document.getElementById("myReqCountryFilter");
+  const entSel=document.getElementById("myReqEntityFilter");
   if(svcSel && svcSel.options.length<=1){
     const svcs=[...new Set(rows.map(r=>r.serviceName).filter(Boolean))];
     svcs.forEach(s=>{ const o=document.createElement("option"); o.value=s; o.textContent=s; svcSel.appendChild(o); });
   }
-  if(cntSel && cntSel.options.length<=1){
-    const cnts=[...new Set(rows.map(r=>r.country).filter(c=>c&&c!=="-"))];
-    cnts.forEach(c=>{ const o=document.createElement("option"); o.value=c; o.textContent=c; cntSel.appendChild(o); });
+  if(entSel && entSel.options.length<=1){
+    const ents=[...new Set(rows.map(r=>reqEntity(r)).filter(e=>e&&e!=="غير محدد"))];
+    ents.forEach(e=>{ const o=document.createElement("option"); o.value=e; o.textContent=e; entSel.appendChild(o); });
   }
 }
 function renderMyRequests(){
   const q=(document.getElementById("myReqSearch").value||"").toLowerCase();
   const stFilter=(document.getElementById("myReqFilter")||{}).value||"";
   const svcFilter=(document.getElementById("myReqServiceFilter")||{}).value||"";
-  const cntFilter=(document.getElementById("myReqCountryFilter")||{}).value||"";
+  const entFilter=(document.getElementById("myReqEntityFilter")||{}).value||"";
   const sortBy=(document.getElementById("myReqSort")||{}).value||"newest";
   const mine=STATE.requests.filter(r=>r.applicant===STATE.user||STATE.role==="admin"||STATE.role==="reviewer");
   fillMyReqFilters(mine);
@@ -3036,7 +3068,7 @@ function renderMyRequests(){
   let rows=mine.filter(r=>!q||JSON.stringify(r).toLowerCase().includes(q));
   if(stFilter)rows=rows.filter(r=>r.status===stFilter);
   if(svcFilter)rows=rows.filter(r=>r.serviceName===svcFilter);
-  if(cntFilter)rows=rows.filter(r=>r.country===cntFilter);
+  if(entFilter)rows=rows.filter(r=>reqEntity(r)===entFilter);
 
   // الترتيب
   if(sortBy==="newest") rows=sortNewestFirst(rows);
@@ -3091,6 +3123,11 @@ function fillAdminFilters(){
     const comps=[...new Set(STATE.requests.map(r=>(r.fields&&r.fields.company)||r.company).filter(Boolean))];
     comps.forEach(c=>{ const o=document.createElement("option"); o.value=c; o.textContent=c; compSel.appendChild(o); });
   }
+  const entSel=document.getElementById("adminEntityFilter");
+  if(entSel && entSel.options.length<=1){
+    const ents=[...new Set(STATE.requests.map(r=>reqEntity(r)).filter(e=>e&&e!=="غير محدد"))];
+    ents.forEach(e=>{ const o=document.createElement("option"); o.value=e; o.textContent=e; entSel.appendChild(o); });
+  }
 }
 function renderAdminTable(){
   fillAdminFilters();
@@ -3104,6 +3141,8 @@ function renderAdminTable(){
   if(filter)rows=rows.filter(r=>r.status===filter);
   if(svcFilter)rows=rows.filter(r=>r.serviceName===svcFilter);
   if(compFilter)rows=rows.filter(r=>((r.fields&&r.fields.company)||r.company)===compFilter);
+  const entFilterA=(document.getElementById("adminEntityFilter")||{}).value||"";
+  if(entFilterA)rows=rows.filter(r=>reqEntity(r)===entFilterA);
   if(q)rows=rows.filter(r=>JSON.stringify(r).toLowerCase().includes(q));
 
   // الترتيب
@@ -4704,6 +4743,9 @@ function renderDashSupport(all,disb,stype){
     // اختصار الأسماء الرسمية الطويلة لأسماء واضحة
     if(/مدن|MODON/i.test(k)) k="هيئة المدن الصناعية (مدن)";
     else if(/hrdf|هدف|الموارد البشرية|صندوق تنمية/i.test(k)) k="صندوق تنمية الموارد (HRDF)";
+    else if(/منشآت|منشات|المنشآت الصغيرة/i.test(k)) k="منشآت";
+    else if(/الصناعة|الثروة المعدنية/i.test(k)) k="وزارة الصناعة";
+    else if(/GOSI|التأمينات/i.test(k)) k="التأمينات (GOSI)";
     else if(/تنمية الصادرات|Saudi Exports|برنامج الصادرات/i.test(k)) k="هيئة تنمية الصادرات";
     if(!m[k]) m[k]={count:0,sum:0};
     m[k].count++; m[k].sum+=disb(r);
