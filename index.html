@@ -4650,9 +4650,10 @@ function renderDashboard(){
     return (r.supportType||"").toString().trim();
   };
 
-  // تصنيف الجهة الداعمة
+  // تصنيف الجهة الداعمة — حصري (كل طلب في فئة واحدة فقط لمنع التكرار)
   const isHRDF=r=>/hrdf|هدف|الموارد البشرية|صندوق تنمية/i.test(stype(r));
-  const isExceptional=r=> r.serviceId==="exceptional" || /استثنائي|التحول الرقمي/.test(r.serviceName||"") || /استثنائي/.test(stype(r));
+  // استثنائي = نوعه استثنائي وجهته ليست HRDF (وإلا يُحسب مرتين)
+  const isExceptional=r=> !isHRDF(r) && (r.serviceId==="exceptional" || /استثنائي|التحول الرقمي/.test(r.serviceName||"") || /استثنائي/.test(stype(r)));
   const isExports=r=> !isHRDF(r) && !isExceptional(r);   // الصادرات = الباقي
   const sumBy=(list,fn)=>list.reduce((s,r)=>s+fn(r),0);
 
