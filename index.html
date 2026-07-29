@@ -4679,8 +4679,8 @@ function renderDashboard(){
         `${excList.length} طلب استثنائي`,"t3",changed)}
     ${dashKpi(`<img src="${HRDF_ICON}" alt="HRDF" style="height:100%;width:auto;object-fit:contain">`,"إجمالي مبالغ دعم HRDF",dashMoney(hrdfDisb),
         `${hrdfList.length} طلب عبر صندوق الموارد`,"t4 logo-kpi",changed)}
-    ${dashKpi("💰","إجمالي المبالغ",dashMoney(exportsDisb+excDisb),
-        `الصادرات + الاستثنائي فقط`,"t1",changed)}`;
+    ${dashKpi("💰","إجمالي المبالغ",dashMoney(exportsDisb+excDisb+hrdfDisb),
+        `جميع الجهات`,"t1",changed)}`;
 
   // توزيع الحالات
   renderDashStatus(all);
