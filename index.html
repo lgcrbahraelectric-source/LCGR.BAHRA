@@ -764,6 +764,13 @@ tbody tr:hover{background:var(--primary-light);transform:scale(1.005)}
 .dash-kpi .dk-ic.logo-kpi{background:#fff !important;padding:7px;border:1px solid var(--border)}
 .dash-kpi .dk-ic.logo-kpi img{display:block}
 
+/* ====== رسم الأعمدة العمودية (المبالغ حسب نوع الدعم) ====== */
+.tv-bars{display:flex;align-items:flex-end;justify-content:space-around;gap:10px;height:230px;padding:10px 4px 0}
+.tv-bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0}
+.tv-bar-val{font-size:.78rem;font-weight:800;color:var(--text);margin-bottom:6px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tv-bar{width:100%;max-width:70px;border-radius:10px 10px 0 0;transition:height 1s cubic-bezier(.2,.8,.2,1);box-shadow:0 4px 12px rgba(0,0,0,.12);min-height:6px}
+.tv-bar-lbl{font-size:.72rem;color:var(--text-soft);margin-top:8px;text-align:center;line-height:1.3;font-weight:600;word-break:break-word}
+
 .dash-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-bottom:22px}
 .dash-kpi{
   background:var(--card);-webkit-backdrop-filter:blur(var(--blur));backdrop-filter:blur(var(--blur));
@@ -1734,7 +1741,7 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
       <div id="dashType"></div>
     </div>
     <div class="dash-panel">
-      <h3>🏆 أعلى الطلبات قيمةً</h3>
+      <h3>🏆 المبالغ حسب نوع الدعم</h3>
       <div id="dashTopValue"></div>
     </div>
   </div>
@@ -4672,8 +4679,8 @@ function renderDashboard(){
         `${excList.length} طلب استثنائي`,"t3",changed)}
     ${dashKpi(`<img src="${HRDF_ICON}" alt="HRDF" style="height:100%;width:auto;object-fit:contain">`,"إجمالي مبالغ دعم HRDF",dashMoney(hrdfDisb),
         `${hrdfList.length} طلب عبر صندوق الموارد`,"t4 logo-kpi",changed)}
-    ${dashKpi("💰","إجمالي المبالغ",dashMoney(exportsDisb+excDisb+hrdfDisb),
-        `${total} طلب · جميع الجهات`,"t1",changed)}`;
+    ${dashKpi("💰","إجمالي المبالغ",dashMoney(exportsDisb+excDisb),
+        `الصادرات + الاستثنائي فقط`,"t1",changed)}`;
 
   // توزيع الحالات
   renderDashStatus(all);
@@ -4693,39 +4700,36 @@ function renderDashboard(){
 function renderDashTopValue(all){
   const el=document.getElementById("dashTopValue");
   if(!el) return;
-  // الاستثنائي: من مبلغ الصرف (M) — الصادرات: من عرض السعر (K)
   const isExc=r=> r.serviceId==="exceptional" || /استثنائي|التحول الرقمي/.test(r.serviceName||"");
   const amt=r=> isExc(r) ? (parseFloat(r.disbursed)||0) : (parseFloat(r.priceOffer)||parseFloat(r.amount)||0);
-  // نستثني المرفوضة/الملغاة
-  const top=all.filter(r=>r.status!=="rejected" && amt(r)>0)
-    .sort((a,b)=>amt(b)-amt(a))
-    .slice(0,7);
-  if(!top.length){
+  // تجميع حسب نوع الدعم / الجهة الداعمة (بدون المرفوضة)
+  const m={};
+  all.filter(r=>r.status!=="rejected" && amt(r)>0).forEach(r=>{
+    const k=reqEntity(r);
+    m[k]=(m[k]||0)+amt(r);
+  });
+  const rows=Object.entries(m).filter(([k,v])=>v>0 && k!=="غير محدد").sort((a,b)=>b[1]-a[1]);
+  if(!rows.length){
     el.innerHTML=`<div class="empty" style="padding:20px;text-align:center"><p>لا توجد بيانات</p></div>`;
     return;
   }
-  if(!top.length){
-    el.innerHTML=`<div class="empty" style="padding:20px;text-align:center"><p>لا توجد بيانات</p></div>`;
-    return;
-  }
-  const max=amt(top[0]);
-  const colors=["#1a7e42","#29c1cf","#f0b429","#5b8def","#7c3aed","#db2777","#0891b2"];
-  el.innerHTML=top.map((r,i)=>{
-    const v=amt(r);
-    const pct=Math.round(v/max*100);
-    // العنوان: اسم المعرض/الجهة (مميّز) بدل اسم الخدمة (مكرّر)
-    const title=(r.entityName||r.serviceName||"-").toString().trim()||"-";
-    const lbl=title.length>22?title.substring(0,22)+"…":title;
-    const sub=(r.company&&r.company!=="-")?r.company:"-";
-    return `<div class="dash-stat-row">
-      <span class="dsr-label" title="${title} — ${sub}">
-        <span style="color:${colors[i%7]};font-size:1rem">🏅</span> ${lbl}
-        <span style="color:var(--text-soft);font-size:.75rem;font-weight:500">${sub}</span>
-      </span>
-      <div class="dash-bar-track"><div class="dash-bar-fill" style="width:${pct}%;background:${colors[i%7]}"></div></div>
-      <span class="dsr-val">${fmtNum(v)}</span>
+  const max=Math.max(...rows.map(([,v])=>v));
+  // ألوان زاهية متدرّجة لكل عمود (نفس روح توزيع المعدلات)
+  const grads=[
+    ["#e74c3c","#c0392b"],["#e67e22","#d35400"],["#d4b106","#a68b00"],
+    ["#3498db","#2980b9"],["#2ecc71","#27ae60"],["#9b59b6","#8e44ad"],["#1abc9c","#16a085"]
+  ];
+  const bars=rows.map(([name,v],i)=>{
+    const h=Math.max(6,Math.round(v/max*100));
+    const g=grads[i%grads.length];
+    const shortName=name.length>16?name.substring(0,16)+"…":name;
+    return `<div class="tv-bar-col" title="${name}: ${fmtNum(v)} ر.س">
+      <div class="tv-bar-val">${fmtNum(v)}</div>
+      <div class="tv-bar" style="height:${h}%;background:linear-gradient(180deg,${g[0]},${g[1]})"></div>
+      <div class="tv-bar-lbl">${shortName}</div>
     </div>`;
   }).join("");
+  el.innerHTML=`<div class="tv-bars">${bars}</div>`;
 }
 
 function groupBySum(arr,keyFn,valFn){
