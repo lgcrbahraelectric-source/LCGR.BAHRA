@@ -1964,10 +1964,11 @@ const SERVICES = [
     icon:"⭐", code:"EXCP", adminOnly:true,
     fields:[
       {k:"support_type",l:"نوع الدعم",t:"text",req:true},
+      {k:"service_type",l:"نوع الخدمة",t:"text",req:false},
       {k:"supporting_entity",l:"الجهة الداعمة",t:"select",req:true,opts:["صندوق تنمية الموارد البشرية (HRDF)","برنامج الصادرات السعودية (Saudi Exports)","المؤسسة العامة للتأمينات الاجتماعية (GOSI)","هيئة المدن الصناعية ومناطق التقنية (MODON)","الهيئة العامة للمنشآت الصغيرة والمتوسطة (منشآت)","وزارة الصناعة والثروة المعدنية","أخرى"]},
       {k:"support_date",l:"تاريخ صرف الدعم",t:"date",req:true},
       {k:"company",l:"الشركة",t:"select",req:true,opts:COMPANIES},
-      {k:"price_offer",l:"عرض السعر (ر.س)",t:"number",req:true},
+      {k:"price_offer",l:"عرض السعر (ر.س)",t:"number",req:false},
       {k:"claim_amount",l:"مبلغ المطالبة (ر.س)",t:"number",req:false},
       {k:"disbursed_amount",l:"مبلغ الصرف (ر.س)",t:"number",req:false},
       {k:"doc_receipt",l:"ملف الفاتورة / التحويل / الإيصال",t:"file",req:false}
@@ -2796,11 +2797,28 @@ function editExceptional(reqId){
   // نعبّئ القيم الحالية
   const f=r.fields||{};
   setTimeout(()=>{
-    const st=document.getElementById("fld_support_type"); if(st)st.value=f.support_type||"";
-    const cp=document.getElementById("fld_company"); if(cp)cp.value=f.company||r.company||"";
-    const pr=document.getElementById("fld_price_offer"); if(pr)pr.value=f.price_offer||r.priceOffer||r.amount||"";
-    const cl=document.getElementById("fld_claim_amount"); if(cl)cl.value=f.claim_amount||r.claimAmount||"";
-    const ds=document.getElementById("fld_disbursed_amount"); if(ds)ds.value=f.disbursed_amount||r.disbursed||"";
+    const setV=(id,val)=>{ const el=document.getElementById(id); if(el && val!=null && val!=="") el.value=val; };
+    setV("fld_support_type", f.support_type);
+    setV("fld_service_type", f.service_type);
+    setV("fld_support_date", f.support_date);
+    setV("fld_company", f.company||r.company);
+    setV("fld_price_offer", f.price_offer||r.priceOffer||r.amount);
+    setV("fld_claim_amount", f.claim_amount||r.claimAmount);
+    setV("fld_disbursed_amount", f.disbursed_amount||r.disbursed);
+    // الجهة الداعمة: لو ضمن القائمة نختارها، وإلا "أخرى" + نص
+    const entVal=f.supporting_entity||r.entityName||"";
+    const entSel=document.getElementById("fld_supporting_entity");
+    if(entSel && entVal){
+      const exists=[...entSel.options].some(o=>o.value===entVal);
+      if(exists){ entSel.value=entVal; }
+      else { entSel.value="أخرى"; onEntityChange(); const oe=document.getElementById("other_entity"); if(oe)oe.value=entVal; }
+    }
+    // الشركة: لو خارج القائمة "أخرى"
+    const cpSel=document.getElementById("fld_company");
+    if(cpSel){
+      const cv=f.company||r.company||"";
+      if(cv && ![...cpSel.options].some(o=>o.value===cv)){ cpSel.value="أخرى"; onCompanyChange(); const oc=document.getElementById("other_company"); if(oc)oc.value=cv; }
+    }
   },50);
 }
 function onFile(k){
@@ -2888,12 +2906,15 @@ function submitForm(){
   if(STATE._editingReqId){
     const r=STATE.requests.find(x=>x.id===STATE._editingReqId);
     if(r){
-      r.company=data.company||r.company;
-      r.amount=data.price_offer||r.amount;
-      r.priceOffer=data.price_offer||r.priceOffer||r.amount;
-      r.claimAmount=data.claim_amount||r.claimAmount||"";
-      r.disbursed=data.disbursed_amount||r.disbursed||"";
-      r.fields=Object.assign({},r.fields,data);
+      // نكتب فقط القيم غير الفارغة فوق القديمة (نحافظ على ما لم يُعدّل)
+      const cleanData={};
+      Object.keys(data).forEach(k=>{ if(data[k]!==""&&data[k]!=null) cleanData[k]=data[k]; });
+      r.company=cleanData.company||r.company;
+      r.amount=cleanData.price_offer||r.amount;
+      r.priceOffer=cleanData.price_offer||r.priceOffer||r.amount;
+      if(cleanData.claim_amount!=null) r.claimAmount=cleanData.claim_amount;
+      if(cleanData.disbursed_amount!=null) r.disbursed=cleanData.disbursed_amount;
+      r.fields=Object.assign({},r.fields,cleanData);
       if(fileNames){ r.fileName=fileNames; }
       const newFiles=Object.values(files);
       if(newFiles.length && !SHEET_API.includes("PUT_YOUR")){
@@ -2989,10 +3010,11 @@ function uploadOneFile(f, refNo, cb){
     const ext=((f.name||"").split(".").pop()||"").toLowerCase().replace(/[^a-z0-9]/g,"");
     const isImage=/^image\//.test(mime);
     const isPdf=(mime==="application/pdf"||ext==="pdf");
-    // PDF والصور → image (يفتح في المتصفح)؛ غيرهم (word/excel) → raw
-    const resourceType=(isImage||isPdf)?"image":"raw";
+    // الصور → image (تُعرض بالمتصفح)؛ PDF وباقي المستندات → raw (يفتح/يُحمّل بدون 401)
+    const resourceType=isImage?"image":"raw";
     const rand=Math.random().toString(36).substring(2,8);
-    const publicId=(refNo?refNo.replace(/[^\w-]/g,"")+"_":"")+"file_"+rand+(ext?"."+ext:"");
+    // public_id بدون امتداد — Cloudinary يضيف الامتداد مرة واحدة تلقائياً (يمنع .pdf.pdf)
+    const publicId=(refNo?refNo.replace(/[^\w-]/g,"")+"_":"")+"file_"+rand;
     fd.append("public_id",publicId);
     const url="https://api.cloudinary.com/v1_1/"+CLOUDINARY_CLOUD+"/"+resourceType+"/upload";
     fetch(url,{method:"POST",body:fd})
@@ -3000,7 +3022,7 @@ function uploadOneFile(f, refNo, cb){
       .then(res=>{
         if(res&&res.secure_url){
           let finalUrl=res.secure_url;
-          // المستندات raw (word/excel) نضيف fl_attachment للتحميل
+          // ملفات raw (PDF/word/excel): fl_attachment لفتح/تحميل موثوق بدون 401
           if(resourceType==="raw"){ finalUrl=res.secure_url.replace("/upload/","/upload/fl_attachment/"); }
           cb({ok:true,name:f.name,url:finalUrl});
         } else {
@@ -3492,12 +3514,30 @@ function uploadCompletionDocs(docsList, refNo, done){
 /* ============================================================
    تفاصيل الطلب (مودال)
    ============================================================ */
+function fixFileUrl(u){
+  if(!u) return u;
+  let url=String(u);
+  // إصلاح الامتداد المكرّر (.pdf.pdf → .pdf ، .png.png → .png ...)
+  url=url.replace(/\.(pdf|png|jpg|jpeg|docx?|xlsx?)\.\1($|\?)/i,".$1$2");
+  // أي ملف غير صورة (PDF/مستند) مرفوع على مسار image → raw + fl_attachment (يمنع 401)
+  if(/\.(pdf|docx?|xlsx?)($|\?)/i.test(url) && url.indexOf("/image/upload/")>-1){
+    url=url.replace("/image/upload/","/raw/upload/fl_attachment/");
+  }
+  // ضمان fl_attachment على مسار raw لفتحها بدون مشاكل
+  if(url.indexOf("/raw/upload/")>-1 && url.indexOf("fl_attachment")===-1){
+    url=url.replace("/raw/upload/","/raw/upload/fl_attachment/");
+  }
+  return url;
+}
 function viewDetail(id){
   const r=STATE.requests.find(x=>x.id===id); if(!r)return;
   const s=SERVICES.find(x=>x.id===r.serviceId);
   document.getElementById("detailTitle").textContent=r.serviceName;
   document.getElementById("detailSub").textContent="رقم الطلب: "+r.refNo;
   let html=`<div style="display:grid;gap:14px">`;
+  // نوع الخدمة
+  html+=`<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:8px">
+    <span style="color:var(--text-soft)">نوع الخدمة</span><b style="color:var(--primary)">${r.serviceName||"-"}</b></div>`;
   // رقم الطلب في الصادرات (إن وُجد)
   if(r.ministryRef){
     html+=`<div style="background:linear-gradient(135deg,var(--primary-light),transparent);padding:12px 14px;border-radius:12px;border-right:4px solid var(--primary);display:flex;justify-content:space-between;align-items:center">
@@ -3516,7 +3556,7 @@ function viewDetail(id){
   if(fileLinks&&fileLinks.length){
     html+=`<div style="border-bottom:1px solid var(--border);padding-bottom:8px">
       <div style="color:var(--text-soft);margin-bottom:6px">المرفقات</div>
-      ${fileLinks.map(f=>f.url?`<a href="${f.url}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;background:var(--primary-light);color:var(--primary);padding:6px 12px;border-radius:8px;text-decoration:none;margin:3px;font-size:.88rem">📎 ${f.name} ↗</a>`:`<span style="display:inline-flex;align-items:center;gap:6px;background:var(--bg2);color:var(--text-soft);padding:6px 12px;border-radius:8px;margin:3px;font-size:.88rem">📎 ${f.name} (لم يُرفع بعد)</span>`).join("")}
+      ${fileLinks.map(f=>f.url?`<a href="${fixFileUrl(f.url)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;background:var(--primary-light);color:var(--primary);padding:6px 12px;border-radius:8px;text-decoration:none;margin:3px;font-size:.88rem">📎 ${f.name} ↗</a>`:`<span style="display:inline-flex;align-items:center;gap:6px;background:var(--bg2);color:var(--text-soft);padding:6px 12px;border-radius:8px;margin:3px;font-size:.88rem">📎 ${f.name} (لم يُرفع بعد)</span>`).join("")}
     </div>`;
   } else if(r.fileName){
     html+=`<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:8px"><span style="color:var(--text-soft)">المرفقات</span><b>📎 ${r.fileName}</b></div>`;
