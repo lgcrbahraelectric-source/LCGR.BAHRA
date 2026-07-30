@@ -1741,7 +1741,7 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
       <div id="dashType"></div>
     </div>
     <div class="dash-panel">
-      <h3>🏆 المبالغ حسب نوع الدعم</h3>
+      <h3>🏆 أعلى 5 طلبات قيمةً</h3>
       <div id="dashTopValue"></div>
     </div>
   </div>
@@ -3010,11 +3010,13 @@ function uploadOneFile(f, refNo, cb){
     const ext=((f.name||"").split(".").pop()||"").toLowerCase().replace(/[^a-z0-9]/g,"");
     const isImage=/^image\//.test(mime);
     const isPdf=(mime==="application/pdf"||ext==="pdf");
-    // الصور → image (تُعرض بالمتصفح)؛ PDF وباقي المستندات → raw (يفتح/يُحمّل بدون 401)
+    // الصور → image ؛ PDF وباقي المستندات → raw
     const resourceType=isImage?"image":"raw";
     const rand=Math.random().toString(36).substring(2,8);
-    // public_id بدون امتداد — Cloudinary يضيف الامتداد مرة واحدة تلقائياً (يمنع .pdf.pdf)
-    const publicId=(refNo?refNo.replace(/[^\w-]/g,"")+"_":"")+"file_"+rand;
+    const safeExt=ext||(isPdf?"pdf":"");
+    // لملفات raw نضمّن الامتداد في public_id ليتحمّل بالصيغة الصحيحة (PDF/DOCX...)
+    let publicId=(refNo?refNo.replace(/[^\w-]/g,"")+"_":"")+"file_"+rand;
+    if(resourceType==="raw" && safeExt){ publicId+="."+safeExt; }
     fd.append("public_id",publicId);
     const url="https://api.cloudinary.com/v1_1/"+CLOUDINARY_CLOUD+"/"+resourceType+"/upload";
     fetch(url,{method:"POST",body:fd})
@@ -4704,7 +4706,9 @@ function renderDashboard(){
   const isExports=r=> !isHRDF(r) && !isExceptional(r);   // الصادرات = الباقي
   const sumBy=(list,fn)=>list.reduce((s,r)=>s+fn(r),0);
 
-  const exportsList=all.filter(isExports), excList=all.filter(isExceptional), hrdfList=all.filter(isHRDF);
+  // المرفوضة لا تُحتسب في أي مبلغ
+  const notRejected=all.filter(r=>r.status!=="rejected");
+  const exportsList=notRejected.filter(isExports), excList=notRejected.filter(isExceptional), hrdfList=notRejected.filter(isHRDF);
   const exportsDisb=sumBy(exportsList,disb), excDisb=sumBy(excList,disb), hrdfDisb=sumBy(hrdfList,disb);
 
   // اكتشاف تغيّر العدد للفلاش
@@ -4736,13 +4740,46 @@ function renderDashboard(){
   if(STATE.lang==="en") setTimeout(applyTranslation,0);
 }
 
-/* تجميع مع جمع قيمة (بدل العدّ) — يرجّع [label,total] مرتّبة تنازلياً */
 function renderDashTopValue(all){
   const el=document.getElementById("dashTopValue");
   if(!el) return;
   const isExc=r=> r.serviceId==="exceptional" || /استثنائي|التحول الرقمي/.test(r.serviceName||"");
   const amt=r=> isExc(r) ? (parseFloat(r.disbursed)||0) : (parseFloat(r.priceOffer)||parseFloat(r.amount)||0);
-  // تجميع حسب نوع الدعم / الجهة الداعمة (بدون المرفوضة)
+  // أعلى 5 طلبات فردية (بدون المرفوضة)
+  const top=all.filter(r=>r.status!=="rejected" && amt(r)>0)
+    .sort((a,b)=>amt(b)-amt(a)).slice(0,5);
+  const rows=top.map(r=>{
+    const label=(r.company||r.refNo||"-");
+    return [label, amt(r), r];
+  });
+  if(!rows.length){
+    el.innerHTML=`<div class="empty" style="padding:20px;text-align:center"><p>لا توجد بيانات</p></div>`;
+    return;
+  }
+  const max=Math.max(...rows.map(([,v])=>v));
+  const grads=[
+    ["#e74c3c","#c0392b"],["#e67e22","#d35400"],["#d4b106","#a68b00"],
+    ["#3498db","#2980b9"],["#2ecc71","#27ae60"],["#9b59b6","#8e44ad"],["#1abc9c","#16a085"]
+  ];
+  const bars=rows.map(([name,v,r],i)=>{
+    const h=Math.max(6,Math.round(v/max*100));
+    const g=grads[i%grads.length];
+    const shortName=name.length>14?name.substring(0,14)+"…":name;
+    return `<div class="tv-bar-col" title="${name} — ${r.serviceName||''}: ${fmtNum(v)} ر.س">
+      <div class="tv-bar-val">${fmtNum(v)}</div>
+      <div class="tv-bar" style="height:${h}%;background:linear-gradient(180deg,${g[0]},${g[1]})"></div>
+      <div class="tv-bar-lbl">${shortName}</div>
+    </div>`;
+  }).join("");
+  el.innerHTML=`<div class="tv-bars">${bars}</div>`;
+}
+
+/* تجميع مع جمع قيمة (بدل العدّ) — يرجّع [label,total] مرتّبة تنازلياً */
+function _unused_renderDashTopValue_grouped(all){
+  const el=document.getElementById("dashTopValue");
+  if(!el) return;
+  const isExc=r=> r.serviceId==="exceptional" || /استثنائي|التحول الرقمي/.test(r.serviceName||"");
+  const amt=r=> isExc(r) ? (parseFloat(r.disbursed)||0) : (parseFloat(r.priceOffer)||parseFloat(r.amount)||0);
   const m={};
   all.filter(r=>r.status!=="rejected" && amt(r)>0).forEach(r=>{
     const k=reqEntity(r);
