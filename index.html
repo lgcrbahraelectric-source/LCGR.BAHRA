@@ -4786,7 +4786,7 @@ function renderDashSupport(all,disb,stype){
   const isExc=r=> r.serviceId==="exceptional" || /استثنائي|التحول الرقمي/.test(r.serviceName||"");
   const amt=r=> isExc(r) ? (parseFloat(r.disbursed)||0) : (parseFloat(r.priceOffer)||parseFloat(r.amount)||0);
   const m={};
-  all.forEach(r=>{
+  all.filter(r=>r.status!=="rejected").forEach(r=>{
     let k=stype(r)||"غير محدد";   // اسم الجهة الفعلي
     // اختصار الأسماء الرسمية الطويلة لأسماء واضحة
     if(/مدن|MODON/i.test(k)) k="هيئة المدن الصناعية (مدن)";
@@ -5503,4 +5503,3 @@ window.addEventListener("resize",()=>{
 </script>
 </body>
 </html>
-            
