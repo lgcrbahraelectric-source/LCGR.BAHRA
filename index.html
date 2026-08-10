@@ -1741,7 +1741,7 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
       <div id="dashType"></div>
     </div>
     <div class="dash-panel">
-      <h3>🏆 أعلى 5 طلبات قيمةً</h3>
+      <h3>🏆 أعلى الطلبات قيمةً</h3>
       <div id="dashTopValue"></div>
     </div>
   </div>
@@ -3062,14 +3062,17 @@ function sortNewestFirst(arr){
 
 function reqEntity(r){
   const isExc=(r.serviceId==="exceptional"||/استثنائي|التحول الرقمي/.test(r.serviceName||""));
-  let k=(isExc&&r.entityName)?r.entityName:(r.supportType||"");
+  // للاستثنائي نقرأ الجهة من J (entityName)
+  let k=isExc?(r.entityName||r.supportType||""):(r.supportType||r.entityName||"");
+  k=k.toString().trim();
   if(/مدن|MODON/i.test(k)) return "هيئة المدن الصناعية (مدن)";
   if(/hrdf|هدف|الموارد البشرية|صندوق تنمية/i.test(k)) return "صندوق تنمية الموارد (HRDF)";
   if(/منشآت|منشات|المنشآت الصغيرة/i.test(k)) return "منشآت";
   if(/الصناعة|الثروة المعدنية/i.test(k)) return "وزارة الصناعة";
   if(/GOSI|التأمينات/i.test(k)) return "التأمينات (GOSI)";
   if(/تنمية الصادرات|Saudi Exports|برنامج الصادرات|صادرات/i.test(k)) return "هيئة تنمية الصادرات";
-  return k||"غير محدد";
+  // لو فاضي أو غير معروف، افتراضياً صادرات (لأن الصادرات الجهة الرئيسية)
+  return k||"هيئة تنمية الصادرات";
 }
 function fillMyReqFilters(rows){
   const svcSel=document.getElementById("myReqServiceFilter");
@@ -4701,7 +4704,12 @@ function renderDashboard(){
   // المرفوضة لا تُحتسب في أي مبلغ
   const notRejected=all.filter(r=>r.status!=="rejected");
   const exportsList=notRejected.filter(isExports), excList=notRejected.filter(isExceptional), hrdfList=notRejected.filter(isHRDF);
-  const exportsDisb=sumBy(exportsList,disb), excDisb=sumBy(excList,disb), hrdfDisb=sumBy(hrdfList,disb);
+  // الصادرات: عرض السعر (K) لأن مبلغ الصرف ما اتعبّى لمعظمها
+  // الاستثنائي وHRDF: مبلغ الصرف (M) لأنه متعبّى
+  const priceOffer=r=>parseFloat(r.priceOffer)||parseFloat(r.amount)||0;
+  const exportsDisb=sumBy(exportsList,priceOffer);
+  const excDisb=sumBy(excList,disb);
+  const hrdfDisb=sumBy(hrdfList,disb);
 
   // اكتشاف تغيّر العدد للفلاش
   const changed=(_dashLastTotal!==-1 && total!==_dashLastTotal);
@@ -4741,8 +4749,9 @@ function renderDashTopValue(all){
   const top=all.filter(r=>r.status!=="rejected" && amt(r)>0)
     .sort((a,b)=>amt(b)-amt(a)).slice(0,5);
   const rows=top.map(r=>{
-    const label=(r.company||r.refNo||"-");
-    return [label, amt(r), r];
+    // عنوان مميّز: اسم المعرض/الجهة أو اسم الخدمة، وتحته الشركة
+    const title=(r.entityName||r.serviceName||r.refNo||"-").toString().trim();
+    return [title, amt(r), r];
   });
   if(!rows.length){
     el.innerHTML=`<div class="empty" style="padding:20px;text-align:center"><p>لا توجد بيانات</p></div>`;
@@ -4756,11 +4765,12 @@ function renderDashTopValue(all){
   const bars=rows.map(([name,v,r],i)=>{
     const h=Math.max(6,Math.round(v/max*100));
     const g=grads[i%grads.length];
-    const shortName=name.length>14?name.substring(0,14)+"…":name;
-    return `<div class="tv-bar-col" title="${name} — ${r.serviceName||''}: ${fmtNum(v)} ر.س">
+    const shortName=name.length>16?name.substring(0,16)+"…":name;
+    const co=(r.company||"").length>12?(r.company||"").substring(0,12)+"…":(r.company||"");
+    return `<div class="tv-bar-col" title="${name} — ${r.company||''}: ${fmtNum(v)} ر.س">
       <div class="tv-bar-val">${fmtNum(v)}</div>
       <div class="tv-bar" style="height:${h}%;background:linear-gradient(180deg,${g[0]},${g[1]})"></div>
-      <div class="tv-bar-lbl">${shortName}</div>
+      <div class="tv-bar-lbl">${shortName}<br><span style="font-size:.65rem;opacity:.7">${co}</span></div>
     </div>`;
   }).join("");
   el.innerHTML=`<div class="tv-bars">${bars}</div>`;
@@ -4811,21 +4821,14 @@ function groupBySum(arr,keyFn,valFn){
 function renderDashSupport(all,disb,stype){
   const el=document.getElementById("dashSupport");
   if(!el) return;
-  // نفس منطق الأعمدة: الصادرات من عرض السعر (K)، الاستثنائي/HRDF من مبلغ الصرف (M)
-  const isExc=r=> r.serviceId==="exceptional" || /استثنائي|التحول الرقمي/.test(r.serviceName||"");
-  const amt=r=> isExc(r) ? (parseFloat(r.disbursed)||0) : (parseFloat(r.priceOffer)||parseFloat(r.amount)||0);
   const m={};
   all.filter(r=>r.status!=="rejected").forEach(r=>{
-    let k=stype(r)||"غير محدد";   // اسم الجهة الفعلي
-    // اختصار الأسماء الرسمية الطويلة لأسماء واضحة
-    if(/مدن|MODON/i.test(k)) k="هيئة المدن الصناعية (مدن)";
-    else if(/hrdf|هدف|الموارد البشرية|صندوق تنمية/i.test(k)) k="صندوق تنمية الموارد (HRDF)";
-    else if(/منشآت|منشات|المنشآت الصغيرة/i.test(k)) k="منشآت";
-    else if(/الصناعة|الثروة المعدنية/i.test(k)) k="وزارة الصناعة";
-    else if(/GOSI|التأمينات/i.test(k)) k="التأمينات (GOSI)";
-    else if(/تنمية الصادرات|Saudi Exports|برنامج الصادرات/i.test(k)) k="هيئة تنمية الصادرات";
+    const k=reqEntity(r)||"هيئة تنمية الصادرات";
     if(!m[k]) m[k]={count:0,sum:0};
-    m[k].count++; m[k].sum+=amt(r);
+    m[k].count++;
+    // صادرات: عرض السعر ؛ باقي الجهات: مبلغ الصرف
+    const isExp=/صادرات/.test(k) && !/استثنائي|HRDF|مدن|منشآت|صناعة|GOSI/.test(k);
+    m[k].sum+=isExp?(parseFloat(r.priceOffer)||parseFloat(r.amount)||0):(parseFloat(r.disbursed)||0);
   });
   const rows=Object.entries(m).sort((a,b)=>b[1].sum-a[1].sum || b[1].count-a[1].count);
   const totalSum=rows.reduce((s,[,v])=>s+v.sum,0);
