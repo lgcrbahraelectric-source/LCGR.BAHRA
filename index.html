@@ -3141,7 +3141,7 @@ function renderAdminKpis(){
     ${kpiHTML("📋","إجمالي الطلبات",all.length,"b-green")}
     ${kpiHTML("⏳","قيد المعالجة",pending,"b-gold")}
     ${kpiHTML("✅","تم صرفها",approved,"b-blue")}
-    ${kpiHTML("❌","مرفوضة",rejected,"b-red")}`;
+    ${kpiHTML("💰","إجمالي المصروف",fmtMoney(total),"b-red")}`;
 }
 function fillAdminFilters(){
   // تعبئة قوائم الخدمات والشركات (مرة واحدة)
@@ -4724,8 +4724,8 @@ function renderDashboard(){
         `${excList.length} طلب استثنائي`,"t3",changed)}
     ${dashKpi(`<img src="${HRDF_ICON}" alt="HRDF" style="height:100%;width:auto;object-fit:contain">`,"إجمالي مبالغ دعم HRDF",dashMoney(hrdfDisb),
         `${hrdfList.length} طلب عبر صندوق الموارد`,"t4 logo-kpi",changed)}
-    ${dashKpi("💰","إجمالي المبالغ",dashMoney(exportsDisb+excDisb+hrdfDisb),
-        `جميع الجهات`,"t1",changed)}`;
+    ${dashKpi("💰","إجمالي المبالغ",dashMoney(all.reduce((s,r)=>s+(parseFloat(r.disbursed)||0),0)),
+        `المبلغ المصروف الفعلي`,"t1",changed)}`;
 
   // توزيع الحالات
   renderDashStatus(all);
