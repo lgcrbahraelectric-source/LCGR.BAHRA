@@ -3140,7 +3140,7 @@ function renderAdminKpis(){
     ${kpiHTML("📋","إجمالي الطلبات",all.length,"b-green")}
     ${kpiHTML("⏳","قيد المعالجة",pending,"b-gold")}
     ${kpiHTML("✅","تم صرفها",approved,"b-blue")}
-    ${kpiHTML("💰","إجمالي المصروف",fmtMoney(total),"b-red")}`;
+    ${kpiHTML("❌","مرفوضة",rejected,"b-red")}`;
 }
 function fillAdminFilters(){
   // تعبئة قوائم الخدمات والشركات (مرة واحدة)
@@ -4708,8 +4708,8 @@ function renderDashboard(){
   // الاستثنائي وHRDF: مبلغ الصرف (M) لأنه متعبّى
   const priceOffer=r=>parseFloat(r.priceOffer)||parseFloat(r.amount)||0;
   const exportsDisb=sumBy(exportsList,priceOffer);
-  const excDisb=sumBy(excList,disb);
-  const hrdfDisb=sumBy(hrdfList,disb);
+  const excDisb=sumBy(excList,priceOffer);
+  const hrdfDisb=sumBy(hrdfList,priceOffer);
 
   // اكتشاف تغيّر العدد للفلاش
   const changed=(_dashLastTotal!==-1 && total!==_dashLastTotal);
