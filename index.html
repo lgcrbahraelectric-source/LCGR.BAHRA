@@ -3061,18 +3061,19 @@ function sortNewestFirst(arr){
 }
 
 function reqEntity(r){
-  const isExc=(r.serviceId==="exceptional"||/استثنائي|التحول الرقمي/.test(r.serviceName||""));
-  // للاستثنائي نقرأ الجهة من J (entityName)
-  let k=isExc?(r.entityName||r.supportType||""):(r.supportType||r.entityName||"");
-  k=k.toString().trim();
-  if(/مدن|MODON/i.test(k)) return "هيئة المدن الصناعية (مدن)";
+  // نقرأ الجهة من نوع الدعم (F) أو اسم الجهة (J) — أيّهما فيه قيمة
+  let k=((r.supportType||"").toString().trim())||((r.entityName||"").toString().trim());
+  // مطابقة بالكلمات المفتاحية — الصادرات لها الأولوية
+  if(/تنمية الصادرات|Saudi Exports|برنامج الصادرات|صادرات/i.test(k)) return "هيئة تنمية الصادرات";
   if(/hrdf|هدف|الموارد البشرية|صندوق تنمية/i.test(k)) return "صندوق تنمية الموارد (HRDF)";
+  if(/مدن|MODON/i.test(k)) return "هيئة المدن الصناعية (مدن)";
   if(/منشآت|منشات|المنشآت الصغيرة/i.test(k)) return "منشآت";
   if(/الصناعة|الثروة المعدنية/i.test(k)) return "وزارة الصناعة";
   if(/GOSI|التأمينات/i.test(k)) return "التأمينات (GOSI)";
-  if(/تنمية الصادرات|Saudi Exports|برنامج الصادرات|صادرات/i.test(k)) return "هيئة تنمية الصادرات";
-  // لو فاضي أو غير معروف، افتراضياً صادرات (لأن الصادرات الجهة الرئيسية)
-  return k||"هيئة تنمية الصادرات";
+  // لو الجهة مكتوبة نص آخر، نعرضها كما هي من الإكسل
+  if(k) return k;
+  // فاضية تماماً → صادرات افتراضياً
+  return "هيئة تنمية الصادرات";
 }
 function fillMyReqFilters(rows){
   const svcSel=document.getElementById("myReqServiceFilter");
@@ -4694,11 +4695,11 @@ function renderDashboard(){
     return (r.supportType||"").toString().trim();
   };
 
-  // تصنيف الجهة الداعمة — حصري (كل طلب في فئة واحدة فقط لمنع التكرار)
-  const isHRDF=r=>/hrdf|هدف|الموارد البشرية|صندوق تنمية/i.test(stype(r));
-  // استثنائي = نوعه استثنائي وجهته ليست HRDF (وإلا يُحسب مرتين)
-  const isExceptional=r=> !isHRDF(r) && (r.serviceId==="exceptional" || /استثنائي|التحول الرقمي/.test(r.serviceName||"") || /استثنائي/.test(stype(r)));
-  const isExports=r=> !isHRDF(r) && !isExceptional(r);   // الصادرات = الباقي
+  // تصنيف الجهة بنفس منطق reqEntity (الجهة من الإكسل، الصادرات لها الأولوية)
+  const isHRDF=r=>/HRDF/.test(reqEntity(r));
+  const isExports=r=>/تنمية الصادرات/.test(reqEntity(r));
+  // استثنائي = كل ما ليس صادرات وليس HRDF (مدن، منشآت، وزارة الصناعة، GOSI...)
+  const isExceptional=r=> !isHRDF(r) && !isExports(r);
   const sumBy=(list,fn)=>list.reduce((s,r)=>s+fn(r),0);
 
   // المرفوضة لا تُحتسب في أي مبلغ
