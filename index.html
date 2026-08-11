@@ -3061,19 +3061,25 @@ function sortNewestFirst(arr){
 }
 
 function reqEntity(r){
-  // نقرأ الجهة من نوع الدعم (F) أو اسم الجهة (J) — أيّهما فيه قيمة
-  let k=((r.supportType||"").toString().trim())||((r.entityName||"").toString().trim());
-  // مطابقة بالكلمات المفتاحية — الصادرات لها الأولوية
-  if(/تنمية الصادرات|Saudi Exports|برنامج الصادرات|صادرات/i.test(k)) return "هيئة تنمية الصادرات";
-  if(/hrdf|هدف|الموارد البشرية|صندوق تنمية/i.test(k)) return "صندوق تنمية الموارد (HRDF)";
-  if(/مدن|MODON/i.test(k)) return "هيئة المدن الصناعية (مدن)";
-  if(/منشآت|منشات|المنشآت الصغيرة/i.test(k)) return "منشآت";
-  if(/الصناعة|الثروة المعدنية/i.test(k)) return "وزارة الصناعة";
-  if(/GOSI|التأمينات/i.test(k)) return "التأمينات (GOSI)";
-  // لو الجهة مكتوبة نص آخر، نعرضها كما هي من الإكسل
-  if(k) return k;
-  // فاضية تماماً → صادرات افتراضياً
-  return "هيئة تنمية الصادرات";
+  // نفحص نوع الدعم (F) واسم الجهة (J) معاً — لاكتشاف الجهة أينما كُتبت
+  const st=(r.supportType||"").toString().trim();
+  const en=(r.entityName||"").toString().trim();
+  const both=st+" | "+en;   // نص مجمّع للبحث
+  // HRDF له الأولوية: أي طلب جهته هدف/HRDF يُصنّف HRDF حتى لو نوعه استثنائي
+  if(/hrdf|هدف|الموارد البشرية|صندوق تنمية|التوظيف/i.test(both)) return "صندوق تنمية الموارد (HRDF)";
+  // الصادرات
+  if(/تنمية الصادرات|Saudi Exports|برنامج الصادرات|صادرات/i.test(both)) return "هيئة تنمية الصادرات";
+  if(/مدن|MODON/i.test(both)) return "هيئة المدن الصناعية (مدن)";
+  if(/منشآت|منشات|المنشآت الصغيرة/i.test(both)) return "منشآت";
+  if(/الصناعة|الثروة المعدنية|المسار الصناعي/i.test(both)) return "المسار الصناعي";
+  if(/GOSI|التأمينات/i.test(both)) return "التأمينات (GOSI)";
+  if(/الاسترداد المالي/i.test(both)) return "الاسترداد المالي";
+  if(/التحول الرقمي/i.test(both)) return "منح التحول الرقمي";
+  if(/عوائق التصدير/i.test(both)) return "دعم عوائق التصدير";
+  // نص آخر: نعرض نوع الدعم كما هو من الإكسل
+  if(st) return st;
+  if(en) return en;
+  return "دعم استثنائي آخر";
 }
 function fillMyReqFilters(rows){
   const svcSel=document.getElementById("myReqServiceFilter");
@@ -4824,12 +4830,13 @@ function renderDashSupport(all,disb,stype){
   if(!el) return;
   const m={};
   all.filter(r=>r.status!=="rejected").forEach(r=>{
-    const k=reqEntity(r)||"هيئة تنمية الصادرات";
+    const k=reqEntity(r);
+    // استبعاد تام لدعم الصادرات — هذا القسم للاستثنائي وHRDF فقط
+    if(/تنمية الصادرات/.test(k)) return;
     if(!m[k]) m[k]={count:0,sum:0};
     m[k].count++;
-    // صادرات: عرض السعر ؛ باقي الجهات: مبلغ الصرف
-    const isExp=/صادرات/.test(k) && !/استثنائي|HRDF|مدن|منشآت|صناعة|GOSI/.test(k);
-    m[k].sum+=isExp?(parseFloat(r.priceOffer)||parseFloat(r.amount)||0):(parseFloat(r.disbursed)||0);
+    // كل الجهات هنا (استثنائي/HRDF): مبلغ الصرف الفعلي
+    m[k].sum+=(parseFloat(r.disbursed)||0)||(parseFloat(r.priceOffer)||parseFloat(r.amount)||0);
   });
   const rows=Object.entries(m).sort((a,b)=>b[1].sum-a[1].sum || b[1].count-a[1].count);
   const totalSum=rows.reduce((s,[,v])=>s+v.sum,0);
