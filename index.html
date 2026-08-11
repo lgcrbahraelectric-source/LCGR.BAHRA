@@ -4711,12 +4711,11 @@ function renderDashboard(){
   // المرفوضة لا تُحتسب في أي مبلغ
   const notRejected=all.filter(r=>r.status!=="rejected");
   const exportsList=notRejected.filter(isExports), excList=notRejected.filter(isExceptional), hrdfList=notRejected.filter(isHRDF);
-  // الصادرات: عرض السعر (K) لأن مبلغ الصرف ما اتعبّى لمعظمها
-  // الاستثنائي وHRDF: مبلغ الصرف (M) لأنه متعبّى
-  const priceOffer=r=>parseFloat(r.priceOffer)||parseFloat(r.amount)||0;
-  const exportsDisb=sumBy(exportsList,priceOffer);
-  const excDisb=sumBy(excList,priceOffer);
-  const hrdfDisb=sumBy(hrdfList,priceOffer);
+  // مبلغ الطلب: مبلغ الصرف الفعلي، وإن كان فارغاً فعرض السعر (يمنع ظهور صفر)
+  const reqAmount=r=>(parseFloat(r.disbursed)||0)||(parseFloat(r.priceOffer)||parseFloat(r.amount)||0);
+  const exportsDisb=sumBy(exportsList,reqAmount);
+  const excDisb=sumBy(excList,reqAmount);
+  const hrdfDisb=sumBy(hrdfList,reqAmount);
 
   // اكتشاف تغيّر العدد للفلاش
   const changed=(_dashLastTotal!==-1 && total!==_dashLastTotal);
@@ -4830,12 +4829,12 @@ function renderDashSupport(all,disb,stype){
   if(!el) return;
   const m={};
   all.filter(r=>r.status!=="rejected").forEach(r=>{
-    const k=reqEntity(r);
-    // استبعاد تام لدعم الصادرات — هذا القسم للاستثنائي وHRDF فقط
-    if(/تنمية الصادرات/.test(k)) return;
+    // الجهة كما في الإكسل: نوع الدعم (F) أو اسم الجهة (J)
+    let k=((r.supportType||"").toString().trim())||((r.entityName||"").toString().trim())||"غير محدد";
+    // الشرط الوحيد: استبعاد دعم الصادرات فقط (لا حذف لأي جهة أخرى)
+    if(/تنمية الصادرات|Saudi Exports|برنامج الصادرات|^صادرات$|هيئة الصادرات/i.test(k)) return;
     if(!m[k]) m[k]={count:0,sum:0};
     m[k].count++;
-    // كل الجهات هنا (استثنائي/HRDF): مبلغ الصرف الفعلي
     m[k].sum+=(parseFloat(r.disbursed)||0)||(parseFloat(r.priceOffer)||parseFloat(r.amount)||0);
   });
   const rows=Object.entries(m).sort((a,b)=>b[1].sum-a[1].sum || b[1].count-a[1].count);
