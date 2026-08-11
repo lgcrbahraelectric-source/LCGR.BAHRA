@@ -4831,17 +4831,14 @@ function renderDashSupport(all,disb,stype){
   if(!el) return;
   const m={};
   all.filter(r=>r.status!=="rejected").forEach(r=>{
-    const f=r.fields||{};
-    // نوع الدعم الفعلي: من حقل support_type، أو supportType، أو نوع الخدمة
-    const supType=(f.support_type||r.supportType||r.serviceName||"").toString().trim();
-    const en=(f.supporting_entity||r.entityName||"").toString().trim();
-    // استبعاد أي طلب تابع للصادرات (نفحص نوع الدعم والجهة معاً)
-    if(/صادرات|Saudi Exports|Exports/i.test(supType+" "+en)) return;
-    // التجميع حسب نوع الدعم (support_type)
-    let k=supType||en||"غير محدد";
-    if(!m[k]) m[k]={count:0,sum:0};
-    m[k].count++;
-    m[k].sum+=(parseFloat(r.disbursed)||0)||(parseFloat(r.priceOffer)||parseFloat(r.amount)||0);
+    // التجميع حصراً من عمود F (نوع الدعم) — لا نقرأ عمود J إطلاقاً
+    const f=(r.supportType||"").toString().trim();
+    if(!f) return;   // بلا نوع دعم → نتجاهله
+    // استبعاد أي قيمة تتبع للصادرات من عمود F
+    if(/صادرات|Saudi Exports|Exports/i.test(f)) return;
+    if(!m[f]) m[f]={count:0,sum:0};
+    m[f].count++;
+    m[f].sum+=(parseFloat(r.disbursed)||0)||(parseFloat(r.priceOffer)||parseFloat(r.amount)||0);
   });
   const rows=Object.entries(m).sort((a,b)=>b[1].sum-a[1].sum || b[1].count-a[1].count);
   const totalSum=rows.reduce((s,[,v])=>s+v.sum,0);
