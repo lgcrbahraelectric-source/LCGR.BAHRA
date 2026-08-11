@@ -5394,7 +5394,17 @@ function aiCall(task, data, cb){
   jsonp("ai", Object.assign({task:task}, data), cb);
 }
 function pushToSheet(req){
-  jsonp("add",req,(res)=>{ if(res&&res.ok)console.log("saved to sheet"); });
+  console.log("⏳ إرسال الطلب للشيت:", req.refNo);
+  // نستخدم POST (بدل GET) لأن الطلب قد يكون كبيراً ويتجاوز حد طول الرابط
+  postJSON("add",req,(res)=>{
+    console.log("📩 رد الشيت:", res);
+    if(res&&res.ok){
+      console.log("✅ تم الحفظ في الشيت:", req.refNo);
+    }else{
+      console.error("❌ فشل حفظ الطلب:", res);
+      toast("⚠️ لم يُحفظ الطلب في الشيت: "+((res&&res.error)||"لا يوجد رد"),"err");
+    }
+  });
 }
 function editInSheet(req){
   // يعدّل الصف الموجود بالرقم الداخلي بدل إضافة صف جديد
