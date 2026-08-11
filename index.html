@@ -4711,11 +4711,11 @@ function renderDashboard(){
   // المرفوضة لا تُحتسب في أي مبلغ
   const notRejected=all.filter(r=>r.status!=="rejected");
   const exportsList=notRejected.filter(isExports), excList=notRejected.filter(isExceptional), hrdfList=notRejected.filter(isHRDF);
-  // الصادرات: عرض السعر فقط (K) — الرقم الصحيح
-  const priceOffer=r=>parseFloat(r.priceOffer)||parseFloat(r.amount)||0;
+  // كل البطاقات: مبلغ الصرف الفعلي (المصروف)
+  const disbAmt=r=>parseFloat(r.disbursed)||0;
   // HRDF/الاستثنائي: مبلغ الصرف، وإن فرغ فعرض السعر (يمنع ظهور صفر)
   const reqAmount=r=>(parseFloat(r.disbursed)||0)||(parseFloat(r.priceOffer)||parseFloat(r.amount)||0);
-  const exportsDisb=sumBy(exportsList,priceOffer);
+  const exportsDisb=sumBy(exportsList,disbAmt);
   const excDisb=sumBy(excList,reqAmount);
   const hrdfDisb=sumBy(hrdfList,reqAmount);
 
@@ -4831,12 +4831,14 @@ function renderDashSupport(all,disb,stype){
   if(!el) return;
   const m={};
   all.filter(r=>r.status!=="rejected").forEach(r=>{
-    const st=(r.supportType||"").toString().trim();
-    const en=(r.entityName||"").toString().trim();
-    // الشرط الوحيد: استبعاد أي طلب تابع للصادرات (يُفحص الحقلان معاً)
-    if(/صادرات|Saudi Exports|Exports/i.test(st+" "+en)) return;
-    // الجهة كما في الإكسل
-    let k=st||en||"غير محدد";
+    const f=r.fields||{};
+    // نوع الدعم الفعلي: من حقل support_type، أو supportType، أو نوع الخدمة
+    const supType=(f.support_type||r.supportType||r.serviceName||"").toString().trim();
+    const en=(f.supporting_entity||r.entityName||"").toString().trim();
+    // استبعاد أي طلب تابع للصادرات (نفحص نوع الدعم والجهة معاً)
+    if(/صادرات|Saudi Exports|Exports/i.test(supType+" "+en)) return;
+    // التجميع حسب نوع الدعم (support_type)
+    let k=supType||en||"غير محدد";
     if(!m[k]) m[k]={count:0,sum:0};
     m[k].count++;
     m[k].sum+=(parseFloat(r.disbursed)||0)||(parseFloat(r.priceOffer)||parseFloat(r.amount)||0);
