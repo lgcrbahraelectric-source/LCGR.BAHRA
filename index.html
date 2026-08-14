@@ -1754,7 +1754,7 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
 
 /* ===== إعدادات ربط Google Sheets ===== */
 // ضع هنا رابط الـ Web App بعد نشر Apps Script (انظر التعليمات)
-const SHEET_API = "https://script.google.com/macros/s/AKfycbxbBbLP-tTXEWRiLIEv7M499_85ra__byzH8yuGgjAD8kMoym23W9vlymVyuOMnoSWyxw/exec";
+const SHEET_API = "https://script.google.com/macros/s/AKfycbw4vUJdMuCLu0koJinXN5IBKu8_xjZ3F6GuzBZoWRWBZnpaDnxs4HzdmPfFUHmWQJJ9Ww/exec";
 // إعدادات Cloudinary لرفع الملفات
 const CLOUDINARY_CLOUD = "k0azlosx";
 const CLOUDINARY_PRESET = "bahra_incentives";
@@ -3815,7 +3815,7 @@ function confirmUser(){
   const btn=document.getElementById("uSaveBtn");
   btn.disabled=true; btn.textContent="جاري الحفظ...";
 
-  postJSON("saveUser",{username,name,email,password,role,authUser:STATE._authUser,authPass:STATE._authPass},(res)=>{
+  postJSON("saveUser",{username,name,email,password,role,authUser:STATE._authUser,authPass:STATE._authPass,authRole:STATE.role},(res)=>{
     btn.disabled=false; btn.textContent="✓ حفظ";
     if(res&&res.ok){
       toast(res.mode==="added"?"✅ تمت إضافة المستخدم":"✅ تم تحديث المستخدم","ok");
@@ -3832,7 +3832,7 @@ function deleteUserConfirm(username){
   if(username===STATE.user){toast("لا يمكنك حذف حسابك الحالي","err");return;}
   if(!ensureAuth()) return;
   if(!confirm("هل أنت متأكد من حذف المستخدم: "+username+"؟\nلا يمكن التراجع عن هذا الإجراء.")) return;
-  postJSON("deleteUser",{username,authUser:STATE._authUser,authPass:STATE._authPass},(res)=>{
+  postJSON("deleteUser",{username,authUser:STATE._authUser,authPass:STATE._authPass,authRole:STATE.role},(res)=>{
     if(res&&res.ok){
       toast("✅ تم حذف المستخدم","ok");
       renderUsers();
@@ -3849,20 +3849,23 @@ function esc(s){
 
 // التأكد من توفر بيانات المصادقة للعمليات الحساسة (تُطلب مرة بعد تحديث الصفحة)
 function ensureAuth(){
-  // إن كانت بيانات الدخول محفوظة من جلسة الدخول، نستخدمها مباشرة (بلا سؤال)
+  // المستخدم مسجّل دخول كـ admin → نمرّر مباشرة بلا سؤال كلمة مرور
+  if(STATE.role==="admin"){
+    STATE._authUser = STATE.loginUsername || getLS("ed_authuser") || STATE.user || "admin";
+    STATE._authPass = STATE._authPass || getLS("ed_authpass") || "__session_admin__";
+    return true;
+  }
+  // غير الأدمن: نستخدم بيانات الجلسة إن وُجدت
   if(STATE._authUser && STATE._authPass) return true;
-  // نستعيد اسم الدخول وكلمة المرور من الجلسة المحفوظة
   const savedUser = STATE.loginUsername || getLS("ed_authuser") || "";
   const savedPass = getLS("ed_authpass") || "";
   if(savedUser && savedPass){
     STATE._authUser=savedUser; STATE._authPass=savedPass;
     return true;
   }
-  // كحل أخير فقط: نطلب كلمة المرور
-  const loginName = savedUser || STATE.user;
   const pw=prompt("لتأكيد العملية، أدخل كلمة مرورك:");
   if(!pw){ toast("تم الإلغاء","err"); return false; }
-  STATE._authUser=loginName;
+  STATE._authUser=savedUser||STATE.user;
   STATE._authPass=pw;
   return true;
 }
