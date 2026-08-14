@@ -3021,8 +3021,10 @@ function uploadOneFile(f, refNo, cb){
       .then(res=>{
         if(res&&res.secure_url){
           let finalUrl=res.secure_url;
+          // إزالة رقم النسخة (v123.../) لتفادي 404 مستقبلاً
+          finalUrl=finalUrl.replace(/\/(image|raw|video)\/upload\/v\d+\//,"/$1/upload/");
           // PDF على image: نضيف fl_attachment عشان ينزّل بدل ما يحاول يعرضه
-          if(/\.pdf($|\?)/i.test(f.name||"")){ finalUrl=res.secure_url.replace("/upload/","/upload/fl_attachment/"); }
+          if(/\.pdf($|\?)/i.test(f.name||"")){ finalUrl=finalUrl.replace("/upload/","/upload/fl_attachment/"); }
           cb({ok:true,name:f.name,url:finalUrl});
         } else {
           console.error("فشل رفع Cloudinary",res);
@@ -3528,6 +3530,9 @@ function fixFileUrl(u){
   let url=String(u);
   // إصلاح الامتداد المكرّر (.pdf.pdf → .pdf ...)
   url=url.replace(/\.(pdf|png|jpe?g|gif|webp|bmp|tiff?|docx?|xlsx?)\.\1($|\?)/i,".$1$2");
+  // إزالة رقم النسخة (v1783844177/) — سببه 404 عند عدم تطابق النسخة.
+  // Cloudinary يجيب أحدث نسخة تلقائياً بدونه.
+  url=url.replace(/\/(image|raw|video)\/upload\/v\d+\//,"/$1/upload/");
   // أي مستند (PDF/Word/Excel) على raw: نضمن fl_attachment
   if(/\.(pdf|docx?|xlsx?)($|\?)/i.test(url) && url.indexOf("/raw/upload/")>-1 && url.indexOf("fl_attachment")===-1){
     url=url.replace("/raw/upload/","/raw/upload/fl_attachment/");
