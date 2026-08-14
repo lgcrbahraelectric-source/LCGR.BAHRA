@@ -3020,10 +3020,9 @@ function uploadOneFile(f, refNo, cb){
       .then(r=>r.json())
       .then(res=>{
         if(res&&res.secure_url){
+          // نستخدم secure_url كما يرجعه Cloudinary (يحوي النسخة الصحيحة) — مضمون
           let finalUrl=res.secure_url;
-          // إزالة رقم النسخة (v123.../) لتفادي 404 مستقبلاً
-          finalUrl=finalUrl.replace(/\/(image|raw|video)\/upload\/v\d+\//,"/$1/upload/");
-          // PDF على image: نضيف fl_attachment عشان ينزّل بدل ما يحاول يعرضه
+          // PDF: نضيف fl_attachment للتحميل الموثوق
           if(/\.pdf($|\?)/i.test(f.name||"")){ finalUrl=finalUrl.replace("/upload/","/upload/fl_attachment/"); }
           cb({ok:true,name:f.name,url:finalUrl});
         } else {
@@ -3525,14 +3524,49 @@ function uploadCompletionDocs(docsList, refNo, done){
 /* ============================================================
    تفاصيل الطلب (مودال)
    ============================================================ */
+// فاتح المرفقات: يفتح الرابط المُصلح، ولو فشل يجرّب صيغة بديلة
+function openAttachment(ev, encUrl){
+  ev.preventDefault();
+  const orig=decodeURIComponent(encUrl);
+  const primary=fixFileUrl(orig);
+  // نفتح نافذة ونضع فيها صفحة تجرّب الصيغ حتى تنجح
+  const alts=[
+    primary,
+    orig,
+    orig.replace(/\/(image|raw|video)\/upload\/v\d+\//,"/$1/upload/"),
+    orig.replace("/image/upload/","/raw/upload/fl_attachment/"),
+    orig.replace(/\.(png|jpe?g|gif|webp|bmp|tiff?)($|\?)/i,"$2")
+  ].filter((v,i,a)=>v&&a.indexOf(v)===i);
+  const w=window.open("","_blank");
+  if(!w){ location.href=primary; return false; }
+  // صفحة وسيطة: تجرّب كل رابط كصورة/تحميل حتى ينجح
+  const list=JSON.stringify(alts);
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>فتح المرفق...</title>
+  <style>body{font-family:sans-serif;text-align:center;padding:40px;color:#333}</style></head>
+  <body><p>⏳ جاري فتح المرفق...</p><script>
+  const urls=${list}; let i=0;
+  function tryUrl(){
+    if(i>=urls.length){ document.body.innerHTML='<p>تعذّر فتح المرفق. الرابط قد يكون تالفاً.</p>'; return; }
+    const u=urls[i++];
+    const img=new Image();
+    img.onload=()=>{ location.replace(u); };
+    img.onerror=()=>{
+      // لو مو صورة، نجرّب فتحه كملف مباشرة عبر fetch
+      fetch(u,{method:'GET'}).then(r=>{ if(r.ok){ location.replace(u); } else { tryUrl(); } }).catch(()=>tryUrl());
+    };
+    img.src=u;
+  }
+  tryUrl();
+  <\/script></body></html>`);
+  w.document.close();
+  return false;
+}
+
 function fixFileUrl(u){
   if(!u) return u;
   let url=String(u);
   // إصلاح الامتداد المكرّر (.pdf.pdf → .pdf ...)
   url=url.replace(/\.(pdf|png|jpe?g|gif|webp|bmp|tiff?|docx?|xlsx?)\.\1($|\?)/i,".$1$2");
-  // إزالة رقم النسخة (v1783844177/) — سببه 404 عند عدم تطابق النسخة.
-  // Cloudinary يجيب أحدث نسخة تلقائياً بدونه.
-  url=url.replace(/\/(image|raw|video)\/upload\/v\d+\//,"/$1/upload/");
   // أي مستند (PDF/Word/Excel) على raw: نضمن fl_attachment
   if(/\.(pdf|docx?|xlsx?)($|\?)/i.test(url) && url.indexOf("/raw/upload/")>-1 && url.indexOf("fl_attachment")===-1){
     url=url.replace("/raw/upload/","/raw/upload/fl_attachment/");
@@ -3566,7 +3600,7 @@ function viewDetail(id){
   if(fileLinks&&fileLinks.length){
     html+=`<div style="border-bottom:1px solid var(--border);padding-bottom:8px">
       <div style="color:var(--text-soft);margin-bottom:6px">المرفقات</div>
-      ${fileLinks.map(f=>f.url?`<a href="${fixFileUrl(f.url)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;background:var(--primary-light);color:var(--primary);padding:6px 12px;border-radius:8px;text-decoration:none;margin:3px;font-size:.88rem">📎 ${f.name} ↗</a>`:`<span style="display:inline-flex;align-items:center;gap:6px;background:var(--bg2);color:var(--text-soft);padding:6px 12px;border-radius:8px;margin:3px;font-size:.88rem">📎 ${f.name} (لم يُرفع بعد)</span>`).join("")}
+      ${fileLinks.map(f=>f.url?`<a href="${fixFileUrl(f.url)}" onclick="return openAttachment(event,'${encodeURIComponent(f.url)}')" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;background:var(--primary-light);color:var(--primary);padding:6px 12px;border-radius:8px;text-decoration:none;margin:3px;font-size:.88rem">📎 ${f.name} ↗</a>`:`<span style="display:inline-flex;align-items:center;gap:6px;background:var(--bg2);color:var(--text-soft);padding:6px 12px;border-radius:8px;margin:3px;font-size:.88rem">📎 ${f.name} (لم يُرفع بعد)</span>`).join("")}
     </div>`;
   } else if(r.fileName){
     html+=`<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:8px"><span style="color:var(--text-soft)">المرفقات</span><b>📎 ${r.fileName}</b></div>`;
