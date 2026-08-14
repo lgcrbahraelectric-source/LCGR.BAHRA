@@ -4882,14 +4882,20 @@ function renderDashSupport(all,disb,stype){
   if(!el) return;
   const m={};
   all.filter(r=>r.status!=="rejected").forEach(r=>{
-    // التجميع حصراً من عمود F (نوع الدعم) — لا نقرأ عمود J إطلاقاً
-    const f=(r.supportType||"").toString().trim();
-    if(!f) return;   // بلا نوع دعم → نتجاهله
-    // استبعاد أي قيمة تتبع للصادرات من عمود F
-    if(/صادرات|Saudi Exports|Exports/i.test(f)) return;
-    if(!m[f]) m[f]={count:0,sum:0};
-    m[f].count++;
-    m[f].sum+=(parseFloat(r.disbursed)||0)||(parseFloat(r.priceOffer)||parseFloat(r.amount)||0);
+    const f=(r.supportType||"").toString().trim();   // عمود F (نوع الدعم)
+    const j=(r.entityName||"").toString().trim();     // عمود J (اسم المعرض/الجهة)
+    let k;
+    if(/تنمية الصادرات|Saudi Exports|صادرات/i.test(f)){
+      // نوع الدعم صادرات → نأخذه من F كما هو
+      k="هيئة تنمية الصادرات";
+    } else {
+      // الدعم الاستثنائي → نأخذ الجهة من عمود J
+      k=j||f||"غير محدد";
+    }
+    if(!k || k==="غير محدد") return;
+    if(!m[k]) m[k]={count:0,sum:0};
+    m[k].count++;
+    m[k].sum+=(parseFloat(r.disbursed)||0)||(parseFloat(r.priceOffer)||parseFloat(r.amount)||0);
   });
   const rows=Object.entries(m).sort((a,b)=>b[1].sum-a[1].sum || b[1].count-a[1].count);
   const totalSum=rows.reduce((s,[,v])=>s+v.sum,0);
