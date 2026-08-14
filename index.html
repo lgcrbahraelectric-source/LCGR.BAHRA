@@ -2062,6 +2062,7 @@ function doLogin(){
       STATE._authUser=u; STATE._authPass=p;
       STATE.loginUsername=u;   // اسم الدخول الحقيقي (للعمليات الحساسة)
       setLS("ed_authuser", u);
+      setLS("ed_authpass", p);   // نحفظها لتفادي إعادة السؤال عند العمليات الحساسة
       try{shapesReact("success");}catch(e){}
       setTimeout(()=>{ loginSuccess(res.user.name||u, res.user.role||"user"); },700);
     } else {
@@ -3526,9 +3527,9 @@ function fixFileUrl(u){
   if(!u) return u;
   let url=String(u);
   // إصلاح الامتداد المكرّر (.pdf.pdf → .pdf ...)
-  url=url.replace(/\.(pdf|png|jpg|jpeg|docx?|xlsx?)\.\1($|\?)/i,".$1$2");
-  // ملفات word/excel المرفوعة على raw: نضمن fl_attachment لفتحها/تحميلها
-  if(/\.(docx?|xlsx?)($|\?)/i.test(url) && url.indexOf("/raw/upload/")>-1 && url.indexOf("fl_attachment")===-1){
+  url=url.replace(/\.(pdf|png|jpe?g|gif|webp|bmp|tiff?|docx?|xlsx?)\.\1($|\?)/i,".$1$2");
+  // أي مستند (PDF/Word/Excel) على raw: نضمن fl_attachment
+  if(/\.(pdf|docx?|xlsx?)($|\?)/i.test(url) && url.indexOf("/raw/upload/")>-1 && url.indexOf("fl_attachment")===-1){
     url=url.replace("/raw/upload/","/raw/upload/fl_attachment/");
   }
   return url;
@@ -3809,10 +3810,18 @@ function esc(s){
 
 // التأكد من توفر بيانات المصادقة للعمليات الحساسة (تُطلب مرة بعد تحديث الصفحة)
 function ensureAuth(){
+  // إن كانت بيانات الدخول محفوظة من جلسة الدخول، نستخدمها مباشرة (بلا سؤال)
   if(STATE._authUser && STATE._authPass) return true;
-  // اسم الدخول الحقيقي (مو الاسم المعروض) — نستعيده من الجلسة إن فُقد
-  const loginName = STATE.loginUsername || getLS("ed_authuser") || STATE.user;
-  const pw=prompt("لأسباب أمنية، الرجاء إعادة إدخال كلمة مرورك للتأكيد:");
+  // نستعيد اسم الدخول وكلمة المرور من الجلسة المحفوظة
+  const savedUser = STATE.loginUsername || getLS("ed_authuser") || "";
+  const savedPass = getLS("ed_authpass") || "";
+  if(savedUser && savedPass){
+    STATE._authUser=savedUser; STATE._authPass=savedPass;
+    return true;
+  }
+  // كحل أخير فقط: نطلب كلمة المرور
+  const loginName = savedUser || STATE.user;
+  const pw=prompt("لتأكيد العملية، أدخل كلمة مرورك:");
   if(!pw){ toast("تم الإلغاء","err"); return false; }
   STATE._authUser=loginName;
   STATE._authPass=pw;
