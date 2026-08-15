@@ -1754,7 +1754,7 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
 
 /* ===== إعدادات ربط Google Sheets ===== */
 // ضع هنا رابط الـ Web App بعد نشر Apps Script (انظر التعليمات)
-const SHEET_API = "https://script.google.com/macros/s/AKfycbw4vUJdMuCLu0koJinXN5IBKu8_xjZ3F6GuzBZoWRWBZnpaDnxs4HzdmPfFUHmWQJJ9Ww/exec";
+const SHEET_API = "https://script.google.com/macros/s/AKfycbybY4BODdrmzgi8hZTlXMfkCXnbpTAmgltaU_FOfCUx81YKXAeLKik12uZfdRA8Ggup/exec";
 // إعدادات Cloudinary لرفع الملفات
 const CLOUDINARY_CLOUD = "k0azlosx";
 const CLOUDINARY_PRESET = "bahra_incentives";
@@ -2801,6 +2801,49 @@ function openForm(svcId){
 function closeForm(){document.getElementById("formOverlay").classList.remove("show");STATE._editingReqId=null;}
 
 // تعديل طلب دعم استثنائي موجود
+// تعديل أي طلب (لكل الخدمات) — للأدمن والمراجع
+function editRequest(reqId){
+  const r=STATE.requests.find(x=>x.id===reqId); if(!r)return;
+  const svcId=r.serviceId||"exceptional";
+  const svc=SERVICES.find(x=>x.id===svcId);
+  if(!svc){ toast("نوع الخدمة غير معروف","err"); return; }
+  openForm(svcId);
+  STATE._editingReqId=reqId;
+  const ft=document.getElementById("formTitle");
+  if(ft) ft.textContent="✏️ تعديل: "+r.serviceName;
+  const f=r.fields||{};
+  setTimeout(()=>{
+    // نعبّي كل حقول النموذج ديناميكياً من fields
+    (svc.fields||[]).forEach(fld=>{
+      const el=document.getElementById("fld_"+fld.k);
+      if(!el) return;
+      let val=f[fld.k];
+      // قيم خاصة من جذر الطلب
+      if(fld.k==="price_offer") val=val||r.priceOffer||r.amount;
+      if(fld.k==="claim_amount") val=val||r.claimAmount;
+      if(fld.k==="disbursed_amount") val=val||r.disbursed;
+      if(fld.k==="company") val=val||r.company;
+      if(fld.k==="currency") val=val||r.currency;
+      if(val==null||val==="") return;
+      // للـ select: لو القيمة خارج الخيارات نستخدم "أخرى" + النص
+      if(el.tagName==="SELECT"){
+        const exists=[...el.options].some(o=>o.value===val);
+        if(exists){ el.value=val; }
+        else {
+          const otherOpt=[...el.options].some(o=>o.value==="أخرى");
+          if(otherOpt){
+            el.value="أخرى";
+            if(fld.k==="company"&&typeof onCompanyChange==="function"){ onCompanyChange(); const oc=document.getElementById("other_company"); if(oc)oc.value=val; }
+            else if(fld.k==="supporting_entity"&&typeof onEntityChange==="function"){ onEntityChange(); const oe=document.getElementById("other_entity"); if(oe)oe.value=val; }
+          } else { el.value=val; }
+        }
+      } else {
+        el.value=val;
+      }
+    });
+  },60);
+}
+
 function editExceptional(reqId){
   const r=STATE.requests.find(x=>x.id===reqId); if(!r)return;
   openForm("exceptional");
@@ -3654,9 +3697,11 @@ function viewDetail(id){
   if(STATE.role==="admin"||STATE.role==="reviewer"){
     const next=getNextStage(r.status);
     let btns="";
-    // تعديل طلب الدعم الاستثنائي
-    if(r.serviceId==="exceptional"){
-      btns+=`<button class="btn btn-primary" onclick="closeDetail();editExceptional('${r.id}')">✏️ تعديل الطلب</button>`;
+    // تعديل الطلب — متاح لكل الطلبات للأدمن/المراجع مع مراعاة الـworkflow
+    // (يُمنع التعديل بعد الرفض؛ ويُسمح في باقي المراحل)
+    if(r.status!=="rejected"){
+      const editFn = (r.serviceId==="exceptional") ? "editExceptional" : "editRequest";
+      btns+=`<button class="btn btn-primary" onclick="closeDetail();${editFn}('${r.id}')">✏️ تعديل الطلب</button>`;
     }
     if(next){
       btns+=`<button class="btn btn-primary" onclick="advanceStatus('${r.id}');closeDetail()">▶ ${STATUS_MAP[next].label}</button>`;
