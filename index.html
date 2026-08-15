@@ -4345,7 +4345,7 @@ function exportReportCSV(){
   // نفس ترتيب أعمدة الشيت بالضبط (19 عمود)
   const headers=["م","الرقم الداخلي","رقم الوزارة","كود الخدمة","اسم الخدمة",
     "نوع الدعم","مقدم الطلب","الشركة","الدولة","اسم المعرض/الجهة",
-    "عرض السعر","مبلغ المطالبة","مبلغ الصرف",
+    "عرض السعر","نوع العملة","مبلغ المطالبة","مبلغ الصرف",
     "حالة الطلب","تاريخ الطلب","تاريخ انتهاء الخدمة","الملاحظات","المرفقات","بيانات إضافية"];
   const rows=all.map((r,i)=>{
     const f=r.fields||{};
@@ -4363,6 +4363,7 @@ function exportReportCSV(){
       r.country||"",
       entity,
       parseFloat(r.priceOffer)||parseFloat(r.amount)||0,
+      r.currency||f.currency||"ريال سعودي",
       parseFloat(r.claimAmount)||0,
       parseFloat(r.disbursed)||0,
       (STATUS_MAP[r.status]||STATUS_MAP.submitted).label,
@@ -5481,6 +5482,7 @@ function editInSheet(req){
     company:req.company,
     supportType:(req.fields&&(req.fields.supporting_entity||req.fields.support_type))||req.supportType||"",
     priceOffer:req.priceOffer||req.amount||"",
+    currency:req.currency||(req.fields&&req.fields.currency)||"",
     claimAmount:req.claimAmount||"",
     disbursed:req.disbursed||"",
     fields:req.fields||{}
