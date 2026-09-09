@@ -3660,8 +3660,20 @@ function viewDetail(id){
     html+=`<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:8px"><span style="color:var(--text-soft)">المرفقات</span><b>📎 ${r.fileName}</b></div>`;
   }
   if(r.currency) html+=`<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:8px"><span style="color:var(--text-soft)">العملة</span><b>${r.currency}</b></div>`;
-  // القسم المالي: عرض السعر · المطالبة · الصرف · الدولة
-  const money=n=>(parseFloat(n)||0).toLocaleString("en-US")+" ر.س";
+  // رمز العملة المختصر من عملة الطلب (يدعم SAR/USD/EUR/AED/EGP/GBP)
+  const curLabel=(()=>{
+    const c=(r.currency||"ريال سعودي").toString();
+    const m=c.match(/\(([A-Z]{3})\)/);          // لو فيه رمز بين قوسين مثل (AED)
+    if(m) return m[1];
+    if(/دولار/.test(c)) return "USD";
+    if(/يورو/.test(c)) return "EUR";
+    if(/درهم/.test(c)) return "AED";
+    if(/مصري/.test(c)) return "EGP";
+    if(/إسترليني|استرليني/.test(c)) return "GBP";
+    if(/ريال/.test(c)) return "ر.س";
+    return c;   // عملة أخرى: نعرض نصها كما هو
+  })();
+  const money=n=>(parseFloat(n)||0).toLocaleString("en-US")+" "+curLabel;
   html+=`<div style="background:var(--bg);padding:12px 14px;border-radius:12px;margin-top:4px;display:grid;gap:8px">
     ${(r.country&&r.country!=="-")?`<div style="display:flex;justify-content:space-between"><span style="color:var(--text-soft)">الدولة</span><b>${r.country}</b></div>`:""}
     <div style="display:flex;justify-content:space-between"><span style="color:var(--text-soft)">عرض السعر</span><b>${money(r.priceOffer||r.amount)}</b></div>
