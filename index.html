@@ -793,9 +793,18 @@ tbody tr:hover{background:var(--primary-light);transform:scale(1.005)}
 /* صف الرسوم */
 .dash-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:20px;margin-bottom:22px}
 .dash-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:22px}
-.dash-grid-4{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;margin-bottom:22px}
-@media(max-width:1100px){.dash-grid-4{grid-template-columns:1fr}}
+.dash-grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}
+@media(max-width:1500px){.dash-grid-4{grid-template-columns:repeat(2,1fr);gap:20px}}
+@media(max-width:900px){.dash-grid-4{grid-template-columns:1fr}}
+/* في العمود الضيق: نصغّر عناصر القوائم قليلاً لتبقى مقروءة */
+@media(min-width:1501px){.dash-grid-4 .dash-panel{padding:16px}.dash-grid-4 .dash-panel h3{font-size:.95rem;margin-bottom:10px}.dash-grid-4 .dash-stat-row{font-size:.82rem;padding:5px 0}.dash-grid-4 .dash-bar-track{max-width:70px;margin:0 8px}.dash-grid-4 .dsr-val{font-size:.8rem}.dash-grid-4 .tv-bars{height:175px}}
 .nav-badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#e67e22;color:#fff;font-size:.72rem;font-weight:800;margin-inline-start:6px}
+/* شارة الحافز المالي على بطاقة الخدمة */
+.svc-inc{display:flex;align-items:baseline;gap:8px;margin:10px 0 14px;padding:8px 12px;border-radius:12px;background:var(--primary-light);border:1px solid var(--glass-border)}
+.svc-inc .si-pct{font-size:1.25rem;font-weight:800;color:var(--primary);line-height:1}
+.svc-inc .si-cap{font-size:.74rem;color:var(--text-soft);font-weight:600}
+.svc-inc.svc-inc-ex{background:var(--bg2)}
+.svc-inc.svc-inc-ex .si-pct{font-size:1.05rem}
 /* عناصر اللوحة القابلة للضغط */
 #dashboardScreen .dash-stat-row,#dashboardScreen .tv-bar-col,#dashboardScreen .dash-kpi,#dashboardScreen .dl-row{cursor:pointer;transition:transform .12s,background .12s;border-radius:10px}
 #dashboardScreen .dash-stat-row:hover,#dashboardScreen .dl-row:hover{background:rgba(26,126,66,.07)}
@@ -2715,10 +2724,15 @@ document.addEventListener("DOMContentLoaded",startI18nObserver);
    عرض الخدمات (كروت)
    ============================================================ */
 function svcCardHTML(s){
+  const inc=(typeof incentiveOf==="function")?incentiveOf(s.id):null;
+  const chip = inc
+    ? `<div class="svc-inc"><span class="si-pct">${inc.pct}%</span><span class="si-cap">حتى ${fmtNum(inc.cap)} ر.س / سنوياً</span></div>`
+    : `<div class="svc-inc svc-inc-ex"><span class="si-pct">⭐</span><span class="si-cap">حسب قرار الإدارة</span></div>`;
   return `<div class="svc-card">
     <div class="svc-icon">${s.icon}</div>
     <h3>${s.name}</h3>
     <p>${s.desc}</p>
+    ${chip}
     <button class="svc-btn" onclick="openForm('${s.id}')">بدء الخدمة <span>←</span></button>
   </div>`;
 }
@@ -2842,8 +2856,71 @@ function openForm(svcId){
     }
   }
   flushGroup();
-  document.getElementById("formBody").innerHTML=html;
+  // بطاقة الحافز المالي (نسبة التعويض والحد الأقصى) تظهر قبل حقول الطلب
+  document.getElementById("formBody").innerHTML=incentiveBannerHTML(svcId)+html;
   document.getElementById("formOverlay").classList.add("show");
+  // تفعيل الحاسبة الحية على حقل عرض السعر
+  attachIncentiveCalc(svcId);
+}
+
+/* ============================================================
+   💰 جدول الحوافز المالية: نسبة التعويض + الحد الأقصى السنوي
+   ============================================================ */
+const INCENTIVES = {
+  legal:         { pct:50, cap:100000  },
+  product_reg:   { pct:50, cap:500000  },
+  buyer_visit:   { pct:50, cap:100000  },
+  lang_support:  { pct:50, cap:75000   },
+  consulting:    { pct:55, cap:500000  },
+  training:      { pct:55, cap:50000   },
+  customization: { pct:55, cap:400000  },
+  exhibition:    { pct:65, cap:1000000 },
+  ecommerce:     { pct:70, cap:55000   },
+  marketing:     { pct:75, cap:600000  }
+};
+function incentiveOf(svcId){ return INCENTIVES[svcId]||null; }
+/* المبلغ المتوقع = عرض السعر × النسبة، بحد أقصى السقف السنوي */
+function calcIncentive(svcId, price){
+  const inc=incentiveOf(svcId); const p=parseFloat(price)||0;
+  if(!inc||p<=0) return null;
+  const raw=p*inc.pct/100;
+  return { pct:inc.pct, cap:inc.cap, raw:raw, amount:Math.min(raw,inc.cap), capped:raw>inc.cap };
+}
+function incentiveBannerHTML(svcId){
+  const inc=incentiveOf(svcId);
+  if(!inc) return `<div style="background:var(--bg);border:1px dashed var(--border);border-radius:14px;padding:12px 16px;margin-bottom:20px;font-size:.86rem;color:var(--text-soft)">
+      ⭐ هذا دعم استثنائي — تُحدَّد نسبة التعويض والمبلغ حسب قرار الإدارة والجهة الداعمة.</div>`;
+  return `<div style="background:linear-gradient(135deg,var(--primary-light),transparent);border:1px solid var(--glass-border);border-right:4px solid var(--primary);border-radius:14px;padding:14px 16px;margin-bottom:20px">
+    <div style="font-weight:800;color:var(--primary);margin-bottom:10px;font-size:.95rem">💰 الحافز المالي لهذه الخدمة</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
+      <div><div style="font-size:.74rem;color:var(--text-soft)">نسبة التعويض</div>
+           <div style="font-size:1.5rem;font-weight:800;color:var(--primary);line-height:1.1">${inc.pct}%</div></div>
+      <div><div style="font-size:.74rem;color:var(--text-soft)">الحد الأقصى السنوي</div>
+           <div style="font-size:1.1rem;font-weight:800;color:var(--text);line-height:1.5">${fmtNum(inc.cap)} <span style="font-size:.8rem;font-weight:600;color:var(--text-soft)">ر.س</span></div></div>
+      <div id="incCalcBox" style="display:none">
+           <div style="font-size:.74rem;color:var(--text-soft)">الدعم المتوقع لطلبك</div>
+           <div id="incCalcVal" style="font-size:1.1rem;font-weight:800;color:var(--green);line-height:1.5"></div>
+           <div id="incCalcNote" style="font-size:.7rem;color:var(--text-soft)"></div></div>
+    </div>
+  </div>`;
+}
+/* تحديث الدعم المتوقع مباشرةً أثناء كتابة عرض السعر */
+function attachIncentiveCalc(svcId){
+  setTimeout(()=>{
+    const inp=document.getElementById("fld_price_offer");
+    if(!inp||!incentiveOf(svcId)) return;
+    const upd=()=>{
+      const c=calcIncentive(svcId, inp.value);
+      const box=document.getElementById("incCalcBox");
+      if(!box) return;
+      if(!c){ box.style.display="none"; return; }
+      box.style.display="";
+      document.getElementById("incCalcVal").textContent=fmtNum(c.amount)+" ر.س";
+      document.getElementById("incCalcNote").textContent =
+        c.capped ? ("بلغ الحد الأقصى (الاحتساب "+fmtNum(c.raw)+")") : (c.pct+"% من عرض السعر");
+    };
+    inp.addEventListener("input",upd); upd();
+  },60);
 }
 function closeForm(){document.getElementById("formOverlay").classList.remove("show");STATE._editingReqId=null;}
 
@@ -3750,6 +3827,25 @@ function viewDetail(id){
     ${(parseFloat(r.claimAmount)>0)?`<div style="display:flex;justify-content:space-between"><span style="color:var(--text-soft)">مبلغ المطالبة</span><b>${money(r.claimAmount)}</b></div>`:""}
     <div style="display:flex;justify-content:space-between"><span style="color:var(--text-soft)">مبلغ الصرف</span><b style="color:var(--green)">${money(r.disbursed)}</b></div>
   </div>`;
+  // بطاقة الحافز المالي للخدمة + الدعم المتوقع مقابل المصروف فعلياً
+  (function(){
+    const inc=incentiveOf(r.serviceId);
+    if(!inc){
+      html+=`<div style="background:var(--bg);border:1px dashed var(--border);border-radius:12px;padding:10px 14px;margin-top:8px;font-size:.84rem;color:var(--text-soft)">⭐ دعم استثنائي — النسبة والمبلغ حسب قرار الإدارة والجهة الداعمة.</div>`;
+      return;
+    }
+    const c=calcIncentive(r.serviceId, r.priceOffer||r.amount);
+    const paid=parseFloat(r.disbursed)||0;
+    html+=`<div style="background:linear-gradient(135deg,var(--primary-light),transparent);border-right:4px solid var(--primary);border-radius:12px;padding:12px 14px;margin-top:8px">
+      <div style="font-weight:800;color:var(--primary);font-size:.88rem;margin-bottom:8px">💰 الحافز المالي للخدمة</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;font-size:.84rem">
+        <div><span style="color:var(--text-soft);font-size:.74rem">نسبة التعويض</span><br><b style="color:var(--primary)">${inc.pct}%</b></div>
+        <div><span style="color:var(--text-soft);font-size:.74rem">الحد الأقصى السنوي</span><br><b>${fmtNum(inc.cap)} ر.س</b></div>
+        ${c?`<div><span style="color:var(--text-soft);font-size:.74rem">الدعم المتوقع</span><br><b style="color:var(--green)">${fmtNum(c.amount)} ر.س</b>${c.capped?'<br><span style="font-size:.68rem;color:var(--text-soft)">بلغ الحد الأقصى</span>':''}</div>`:""}
+        ${(c&&paid>0)?`<div><span style="color:var(--text-soft);font-size:.74rem">الفرق عن المتوقع</span><br><b style="color:${paid>=c.amount?'var(--green)':'#b45309'}">${(paid-c.amount>=0?'+':'')}${fmtNum(paid-c.amount)} ر.س</b></div>`:""}
+      </div>
+    </div>`;
+  })();
   const st=STATUS_MAP[r.status]||STATUS_MAP.submitted;
   html+=`<div style="display:flex;justify-content:space-between;padding-top:6px"><span style="color:var(--text-soft)">الحالة</span><span class="badge ${st.badge}">${st.label}</span></div>`;
   if(r.note)html+=`<div style="background:var(--bg);padding:12px;border-radius:10px;margin-top:6px"><b>ملاحظة المراجع:</b> ${r.note}</div>`;
@@ -3787,7 +3883,7 @@ function viewDetail(id){
   }
   // زر تقييم AI (للأدمن والمراجع فقط)
   if(STATE.role==="admin"||STATE.role==="reviewer"){
-    html+=`<div style="margin-top:18px"><button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="aiEvaluate('${r.id}')">🤖 احصل على تقييم ذكي للطلب</button><div id="aiEvalContainer" style="display:none;margin-top:14px"></div></div>`;
+    html+=`<div style="margin-top:18px"><button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="aiEvaluate('${r.id}')">🤖 احصل على تقييم ذكي للطلب</button></div>`;
   }
   document.getElementById("detailBody").innerHTML=html;
   // أزرار الأدمن
@@ -4721,35 +4817,6 @@ function aiFormatText(text){
 }
 
 // ----- 1) تقييم الطلب -----
-function aiEvaluate(reqId){
-  const r=STATE.requests.find(x=>x.id===reqId); if(!r)return;
-  const container=document.getElementById("aiEvalContainer");
-  if(!container)return;
-  container.style.display="block";
-  container.innerHTML=`
-    <div class="ai-eval-box">
-      <div class="ai-head"><span class="ai-badge">🤖 AI</span> تقييم الطلب الذكي</div>
-      <div class="ai-loading"><span class="ai-dot"></span><span class="ai-dot"></span><span class="ai-dot"></span>جاري التحليل...</div>
-    </div>`;
-  if(SHEET_API.includes("PUT_YOUR")){
-    container.querySelector(".ai-eval-box").innerHTML=`
-      <div class="ai-head"><span class="ai-badge">🤖 AI</span> تقييم الطلب الذكي</div>
-      <div class="ai-eval-body" style="color:var(--text-soft)">⚠️ ميزة AI تعمل فقط بعد ربط الشيت وتفعيل مفتاح Groq API.</div>`;
-    return;
-  }
-  jsonp("ai",{mode:"evaluate",request:r},(res)=>{
-    const box=container.querySelector(".ai-eval-box");
-    if(res&&res.ok&&res.text){
-      box.innerHTML=`
-        <div class="ai-head"><span class="ai-badge">🤖 AI</span> تقييم الطلب الذكي</div>
-        <div class="ai-eval-body">${aiFormatText(res.text)}</div>`;
-    } else {
-      box.innerHTML=`
-        <div class="ai-head"><span class="ai-badge">🤖 AI</span> تقييم الطلب الذكي</div>
-        <div class="ai-eval-body" style="color:var(--red)">⚠️ ${(res&&res.error)||"تعذّر الحصول على التقييم"}</div>`;
-    }
-  });
-}
 
 // ----- 2) المساعد الذكي (Chatbot) -----
 function toggleAiChat(){
@@ -4800,56 +4867,6 @@ function sendAiChat(){
 }
 
 // ----- 3) ملخص ذكي للتقارير -----
-function aiReportSummary(){
-  const container=document.getElementById("aiSummaryContainer");
-  if(!container)return;
-  container.style.display="block";
-  container.innerHTML=`
-    <div class="ai-eval-box">
-      <div class="ai-head"><span class="ai-badge">🤖 AI</span> الملخص التنفيذي الذكي</div>
-      <div class="ai-loading"><span class="ai-dot"></span><span class="ai-dot"></span><span class="ai-dot"></span>جاري إعداد التحليل...</div>
-    </div>`;
-  if(SHEET_API.includes("PUT_YOUR")){
-    container.querySelector(".ai-eval-box").innerHTML=`
-      <div class="ai-head"><span class="ai-badge">🤖 AI</span> الملخص التنفيذي الذكي</div>
-      <div class="ai-eval-body" style="color:var(--text-soft)">⚠️ هذي الميزة تعمل بعد ربط الشيت وتفعيل مفتاح Groq API.</div>`;
-    return;
-  }
-  // جمع الإحصائيات
-  const all=STATE.requests;
-  const approvedList=all.filter(r=>r.status==="disbursed");
-  const pendingList=all.filter(r=>r.status==="submitted"||r.status==="preliminary"||r.status==="review");
-  const totalAmount=all.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
-  const approvedAmount=approvedList.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
-  const byService={}; all.forEach(r=>{byService[r.serviceName]=(byService[r.serviceName]||0)+1;});
-  const byCountry={}; all.forEach(r=>{const c=r.country||'-';byCountry[c]=(byCountry[c]||0)+1;});
-  const topService=Object.entries(byService).sort((a,b)=>b[1]-a[1])[0];
-  const topCountry=Object.entries(byCountry).sort((a,b)=>b[1]-a[1])[0];
-  const stats={
-    total:all.length,
-    approved:approvedList.length,
-    pending:pendingList.length,
-    rejected:all.filter(r=>r.status==="rejected").length,
-    rate:all.length?Math.round(approvedList.length/all.length*100):0,
-    totalAmount:Math.round(totalAmount),
-    approvedAmount:Math.round(approvedAmount),
-    countries:Object.keys(byCountry).length,
-    topService:topService?topService[0]:"-",
-    topCountry:topCountry?topCountry[0]:"-"
-  };
-  jsonp("ai",{mode:"summary",stats:stats},(res)=>{
-    const box=container.querySelector(".ai-eval-box");
-    if(res&&res.ok&&res.text){
-      box.innerHTML=`
-        <div class="ai-head"><span class="ai-badge">🤖 AI</span> الملخص التنفيذي الذكي</div>
-        <div class="ai-eval-body">${aiFormatText(res.text)}</div>`;
-    } else {
-      box.innerHTML=`
-        <div class="ai-head"><span class="ai-badge">🤖 AI</span> الملخص التنفيذي الذكي</div>
-        <div class="ai-eval-body" style="color:var(--red)">⚠️ ${(res&&res.error)||"تعذّر الحصول على الملخص"}</div>`;
-    }
-  });
-}
 
 /* ============================================================
    🖥️ شاشة العرض الكبيرة (Dashboard) مع تحديث تلقائي
@@ -4956,41 +4973,6 @@ function renderDashboard(){
   if(STATE.lang==="en") setTimeout(applyTranslation,0);
 }
 
-function renderDashTopValue(all){
-  const el=document.getElementById("dashTopValue");
-  if(!el) return;
-  const isExc=r=> r.serviceId==="exceptional" || /استثنائي|التحول الرقمي/.test(r.serviceName||"");
-  const amt=r=> isExc(r) ? (parseFloat(r.disbursed)||0) : (parseFloat(r.priceOffer)||parseFloat(r.amount)||0);
-  // أعلى 5 طلبات فردية (بدون المرفوضة)
-  const top=all.filter(r=>r.status!=="rejected" && amt(r)>0)
-    .sort((a,b)=>amt(b)-amt(a)).slice(0,5);
-  const rows=top.map(r=>{
-    // عنوان مميّز: اسم المعرض/الجهة أو اسم الخدمة، وتحته الشركة
-    const title=(r.entityName||r.serviceName||r.refNo||"-").toString().trim();
-    return [title, amt(r), r];
-  });
-  if(!rows.length){
-    el.innerHTML=`<div class="empty" style="padding:20px;text-align:center"><p>لا توجد بيانات</p></div>`;
-    return;
-  }
-  const max=Math.max(...rows.map(([,v])=>v));
-  const grads=[
-    ["#e74c3c","#c0392b"],["#e67e22","#d35400"],["#d4b106","#a68b00"],
-    ["#3498db","#2980b9"],["#2ecc71","#27ae60"],["#9b59b6","#8e44ad"],["#1abc9c","#16a085"]
-  ];
-  const bars=rows.map(([name,v,r],i)=>{
-    const h=Math.max(6,Math.round(v/max*100));
-    const g=grads[i%grads.length];
-    const shortName=name.length>16?name.substring(0,16)+"…":name;
-    const co=(r.company||"").length>12?(r.company||"").substring(0,12)+"…":(r.company||"");
-    return `<div class="tv-bar-col" title="${name} — ${r.company||''}: ${fmtNum(v)} ر.س">
-      <div class="tv-bar-val">${fmtNum(v)}</div>
-      <div class="tv-bar" style="height:${h}%;background:linear-gradient(180deg,${g[0]},${g[1]})"></div>
-      <div class="tv-bar-lbl">${shortName}<br><span style="font-size:.65rem;opacity:.7">${co}</span></div>
-    </div>`;
-  }).join("");
-  el.innerHTML=`<div class="tv-bars">${bars}</div>`;
-}
 
 /* قيمة الطلب الموحّدة للمبالغ (استثنائي=الصرف، غيره=عرض السعر)، بدون المرفوضة */
 function reqVal(r){
@@ -5027,7 +5009,7 @@ function renderDashGrowth(all){
     const h=Math.max(6,Math.round(v/max*100));
     let growth="";
     if(prev>0){ const pct=Math.round((v-prev)/prev*100); const up=pct>=0; growth=`<div style="font-size:.62rem;font-weight:700;color:${up?'#1a9e52':'#c0392b'}">${up?'▲':'▼'} ${Math.abs(pct)}%</div>`; }
-    return `<div class="tv-bar-col" title="${k}: ${fmtNum(v)} ر.س" onclick="dashDrill('year','${encodeURIComponent(k)}')">
+    return `<div class="tv-bar-col" title="${k}: ${fmtNum(v)} ر.س" onclick="dashDrill('year','${dkey(k)}')">
       <div class="tv-bar-val">${fmtNum(Math.round(v/1000))}k</div>
       ${growth}
       <div class="tv-bar" style="height:${h}%;background:linear-gradient(180deg,${g[0]},${g[1]})"></div>
@@ -5038,39 +5020,6 @@ function renderDashGrowth(all){
 }
 
 /* تجميع مع جمع قيمة (بدل العدّ) — يرجّع [label,total] مرتّبة تنازلياً */
-function _unused_renderDashTopValue_grouped(all){
-  const el=document.getElementById("dashTopValue");
-  if(!el) return;
-  const isExc=r=> r.serviceId==="exceptional" || /استثنائي|التحول الرقمي/.test(r.serviceName||"");
-  const amt=r=> isExc(r) ? (parseFloat(r.disbursed)||0) : (parseFloat(r.priceOffer)||parseFloat(r.amount)||0);
-  const m={};
-  all.filter(r=>r.status!=="rejected" && amt(r)>0).forEach(r=>{
-    const k=reqEntity(r);
-    m[k]=(m[k]||0)+amt(r);
-  });
-  const rows=Object.entries(m).filter(([k,v])=>v>0 && k!=="غير محدد").sort((a,b)=>b[1]-a[1]);
-  if(!rows.length){
-    el.innerHTML=`<div class="empty" style="padding:20px;text-align:center"><p>لا توجد بيانات</p></div>`;
-    return;
-  }
-  const max=Math.max(...rows.map(([,v])=>v));
-  // ألوان زاهية متدرّجة لكل عمود (نفس روح توزيع المعدلات)
-  const grads=[
-    ["#e74c3c","#c0392b"],["#e67e22","#d35400"],["#d4b106","#a68b00"],
-    ["#3498db","#2980b9"],["#2ecc71","#27ae60"],["#9b59b6","#8e44ad"],["#1abc9c","#16a085"]
-  ];
-  const bars=rows.map(([name,v],i)=>{
-    const h=Math.max(6,Math.round(v/max*100));
-    const g=grads[i%grads.length];
-    const shortName=name.length>16?name.substring(0,16)+"…":name;
-    return `<div class="tv-bar-col" title="${name}: ${fmtNum(v)} ر.س">
-      <div class="tv-bar-val">${fmtNum(v)}</div>
-      <div class="tv-bar" style="height:${h}%;background:linear-gradient(180deg,${g[0]},${g[1]})"></div>
-      <div class="tv-bar-lbl">${shortName}</div>
-    </div>`;
-  }).join("");
-  el.innerHTML=`<div class="tv-bars">${bars}</div>`;
-}
 
 function groupBySum(arr,keyFn,valFn){
   const m={};
@@ -5109,7 +5058,7 @@ function renderDashSupport(all,disb,stype){
   el.innerHTML=rows.map(([name,v],i)=>{
     const pct=Math.round(v.sum/maxSum*100);
     const short=name.length>26?name.substring(0,26)+"…":name;
-    return `<div class="dash-stat-row" onclick="dashDrill('entity','${'$'}{encodeURIComponent(name)}')">
+    return `<div class="dash-stat-row" onclick="dashDrill('entity','${dkey(name)}')">
       <span class="dsr-label" title="${name}">${short} <span style="color:var(--text-soft);font-size:.75rem">(${v.count})</span></span>
       <div class="dash-bar-track"><div class="dash-bar-fill c${i%7}" style="width:${pct}%"></div></div>
       <span class="dsr-val">${fmtNum(v.sum)}</span>
@@ -5140,7 +5089,7 @@ const DASH_STATUS_COLORS = {
   review:      "#8b5cf6",
   returned:    "#f97316",
   disbursed:   "#10b981",
-  rejected:    "#ef4444"
+  rejected:    "#b45309"
 };
 
 function renderDashStatus(all){
@@ -5172,7 +5121,7 @@ function renderDashStatus(all){
     if(r.count<=0) return;
     const len=C*(r.pct/100);
     segs+=`<circle class="dd-seg" cx="80" cy="80" r="${R}" fill="none" style="cursor:pointer"
-             onclick="dashDrill('status','${encodeURIComponent(r.st)}')"
+             onclick="dashDrill('status','${dkey(r.st)}')"
              stroke="${r.color}" stroke-width="20" stroke-linecap="butt"
              stroke-dasharray="${len.toFixed(2)} ${(C-len).toFixed(2)}"
              stroke-dashoffset="${(-offset).toFixed(2)}"><title>${r.lbl}: ${r.count}</title></circle>`;
@@ -5180,7 +5129,7 @@ function renderDashStatus(all){
   });
 
   const legend=rows.map(r=>`
-    <div class="dl-row${r.count?"":" zero"}" title="${r.lbl}" onclick="dashDrill('status','${encodeURIComponent(r.st)}')">
+    <div class="dl-row${r.count?"":" zero"}" title="${r.lbl}" onclick="dashDrill('status','${dkey(r.st)}')">
       <span class="dl-dot" style="background:${r.color}"></span>
       <span class="dl-name">${r.icon} ${r.lbl}</span>
       <span class="dl-val">${r.count}</span>
@@ -5214,7 +5163,7 @@ function renderDashList(elId,data,icon,color,drillType){
     const lbl=(STATE.lang==="en"&&typeof tr==="function")?tr(label):label;
     const short=lbl.length>26?lbl.substring(0,26)+"…":lbl;
     const barStyle=grad?`width:${pct}%;background:${grad}`:`width:${pct}%`;
-    const click=drillType?` onclick="dashDrill('${drillType}','${encodeURIComponent(label)}')"`:"";
+    const click=drillType?` onclick="dashDrill('${drillType}','${dkey(label)}')"`:"";
     return `<div class="dash-stat-row"${click}>
       <span class="dsr-label" title="${lbl}">${short}</span>
       <div class="dash-bar-track"><div class="dash-bar-fill c${i%7}" style="${barStyle}"></div></div>
@@ -5222,6 +5171,9 @@ function renderDashList(elId,data,icon,color,drillType){
     </div>`;
   }).join("");
 }
+
+/* ترميز آمن لمفاتيح التنقيب داخل onclick (يهرّب حتى علامة الاقتباس المفردة) */
+function dkey(v){ return encodeURIComponent(String(v==null?"":v)).replace(/'/g,"%27"); }
 
 /* مفتاح الجهة الداعمة لطلب (نفس منطق لوحة الجهات) */
 function supportKey(r){
@@ -5666,6 +5618,9 @@ function saveRequests(){ setLS("ed_requests",JSON.stringify(STATE.requests)); }
 function loadRequests(){
   const d=getLS("ed_requests");
   if(d){ try{STATE.requests=JSON.parse(d);}catch(e){STATE.requests=[];} }
+  // الشارة تُحسب بعد تحميل الطلبات (لا قبلها)
+  if(typeof updatePendingBadge==="function") updatePendingBadge();
+  if(typeof renderHomeKpis==="function" && STATE.user) { try{ renderHomeKpis(); }catch(e){} }
   // جلب من الشيت أيضاً
   fetchFromSheet();
 }
@@ -5766,7 +5721,6 @@ document.addEventListener("keydown",function(e){
   const dd=document.getElementById("dashDrill"); if(dd&&dd.classList.contains("show")){ closeDashDrill(); return; }
   const openOverlay=document.querySelector(".overlay.show");
   if(openOverlay){ openOverlay.classList.remove("show"); return; }
-  const det=document.getElementById("detailModal"); if(det&&det.classList.contains("show")){ if(typeof closeDetail==="function")closeDetail(); return; }
   const ds=document.getElementById("dashboardScreen"); if(ds&&ds.classList.contains("show")){ closeDashboard(); return; }
 });
 
