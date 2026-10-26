@@ -793,6 +793,31 @@ tbody tr:hover{background:var(--primary-light);transform:scale(1.005)}
 /* صف الرسوم */
 .dash-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:20px;margin-bottom:22px}
 .dash-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:22px}
+.dash-grid-4{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;margin-bottom:22px}
+@media(max-width:1100px){.dash-grid-4{grid-template-columns:1fr}}
+.nav-badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#e67e22;color:#fff;font-size:.72rem;font-weight:800;margin-inline-start:6px}
+/* عناصر اللوحة القابلة للضغط */
+#dashboardScreen .dash-stat-row,#dashboardScreen .tv-bar-col,#dashboardScreen .dash-kpi,#dashboardScreen .dl-row{cursor:pointer;transition:transform .12s,background .12s;border-radius:10px}
+#dashboardScreen .dash-stat-row:hover,#dashboardScreen .dl-row:hover{background:rgba(26,126,66,.07)}
+#dashboardScreen .tv-bar-col:hover{transform:translateY(-3px)}
+#dashboardScreen .dash-kpi:hover{transform:translateY(-3px);box-shadow:0 10px 26px rgba(20,40,30,.14)}
+#dashboardScreen .dash-donut svg .dd-seg{cursor:pointer}
+/* مودال التنقيب */
+#dashDrill{display:none;position:fixed;inset:0;z-index:850;background:rgba(10,20,15,.55);backdrop-filter:blur(3px);align-items:center;justify-content:center;padding:24px}
+#dashDrill.show{display:flex}
+#dashDrill .dd-box{background:var(--card-solid);border-radius:20px;box-shadow:0 24px 60px rgba(0,0,0,.3);width:min(720px,96vw);max-height:84vh;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--glass-border)}
+#dashDrill .dd-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;background:var(--grad-primary)}
+#dashDrill .dd-head h3{color:#fff;margin:0;font-size:1.15rem;font-weight:800}
+#dashDrill .dd-x{background:rgba(255,255,255,.2);border:0;color:#fff;width:34px;height:34px;border-radius:10px;cursor:pointer;font-size:1rem}
+#dashDrill .dd-x:hover{background:rgba(255,255,255,.35)}
+#dashDrill #dashDrillBody{padding:16px 20px;overflow-y:auto}
+#dashDrill .dd-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 12px;border-bottom:1px solid var(--border);font-size:.9rem}
+#dashDrill .dd-row:last-child{border-bottom:none}
+#dashDrill .dd-row .dd-main{display:flex;flex-direction:column;gap:2px;min-width:0}
+#dashDrill .dd-row .dd-main b{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#dashDrill .dd-row .dd-main span{color:var(--text-soft);font-size:.76rem}
+#dashDrill .dd-amt{font-weight:800;color:var(--primary);font-variant-numeric:tabular-nums;white-space:nowrap}
+#dashDrill .dd-sum{display:flex;justify-content:space-between;padding:12px;margin-bottom:8px;background:var(--primary-light);border-radius:12px;font-weight:800;color:var(--primary)}
 .dash-panel{
   background:var(--card);-webkit-backdrop-filter:blur(var(--blur));backdrop-filter:blur(var(--blur));
   border:1px solid var(--glass-border);border-radius:22px;padding:22px;box-shadow:var(--shadow);
@@ -1196,7 +1221,7 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
     <div class="nav-item" data-page="myrequests" onclick="nav('myrequests')"><span class="ic">📑</span> طلباتي</div>
     <div class="nav-sep"></div>
     <div class="nav-label" id="adminLabel" style="display:none">إدارة</div>
-    <div class="nav-item admin-only" data-page="admin" onclick="nav('admin')" style="display:none"><span class="ic">⚙️</span> لوحة الأدمن</div>
+    <div class="nav-item admin-only" data-page="admin" onclick="nav('admin')" style="display:none"><span class="ic">⚙️</span> مركز التحكم <span id="pendingBadge" class="nav-badge" style="display:none"></span></div>
     <div class="nav-item admin-only" data-page="users" onclick="nav('users')" style="display:none"><span class="ic">👥</span> المستخدمون</div>
     <div class="nav-item admin-only" data-page="reports" onclick="nav('reports')" style="display:none"><span class="ic">📊</span> التقارير و KPI</div>
   </aside>
@@ -1242,7 +1267,7 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
               <option value="review">تحت الدراسة</option>
               <option value="returned">معاد لاستكمال النواقص</option>
               <option value="disbursed">تم الصرف</option>
-              <option value="rejected">تم رفض طلب الحافز</option>
+              <option value="rejected">تتم معالجته يدوياً</option>
             </select>
             <select id="myReqServiceFilter" onchange="renderMyRequests()" class="flt-select">
               <option value="">كل الخدمات</option>
@@ -1267,11 +1292,10 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
     <section class="page" id="page-admin">
       <div class="page-head" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:14px">
         <div>
-          <div class="breadcrumb"><span onclick="nav('home')">الرئيسية</span> ‹ لوحة الأدمن</div>
+          <div class="breadcrumb"><span onclick="nav('home')">الرئيسية</span> ‹ مركز التحكم</div>
           <h1>إدارة الطلبات</h1>
           <p>مراجعة واعتماد الطلبات المقدمة</p>
         </div>
-        <button class="btn btn-primary" onclick="openDashboard()">🖥️ وضع العرض</button>
       </div>
       <div class="kpi-grid" id="adminKpis"></div>
       <div class="panel">
@@ -1285,7 +1309,7 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
               <option value="review">تحت الدراسة</option>
               <option value="returned">معاد لاستكمال النواقص</option>
               <option value="disbursed">تم الصرف</option>
-              <option value="rejected">تم رفض طلب الحافز</option>
+              <option value="rejected">تتم معالجته يدوياً</option>
             </select>
             <select id="adminServiceFilter" onchange="renderAdminTable()" class="flt-select">
               <option value="">كل الخدمات</option>
@@ -1345,6 +1369,7 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
           <p>تحليل شامل لأداء الطلبات والخدمات</p>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="openDashboard()">🖥️ وضع العرض</button>
           <button class="btn btn-ghost" onclick="aiReportSummary()">🤖 ملخص ذكي</button>
           <button class="btn btn-primary" onclick="printFullReport()">📊 تصدير التقرير الشامل</button>
           <button class="btn btn-primary" id="exportCsvBtn" onclick="exportReportCSV()" style="background:var(--green)">📥 تصدير Excel</button>
@@ -1486,17 +1511,17 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
 <div class="overlay" id="rejectOverlay">
   <div class="modal" style="max-width:480px">
     <div class="modal-head">
-      <div class="ti"><h2>رفض الطلب</h2><p>اكتب سبب الرفض (اختياري)</p></div>
+      <div class="ti"><h2>تحويل للمعالجة اليدوية</h2><p>اكتب سبب التحويل (اختياري)</p></div>
       <button class="close-x" onclick="closeRejectModal()">✕</button>
     </div>
     <div class="modal-body">
       <div class="field">
-        <label>سبب الرفض</label>
-        <textarea id="rejectReason" placeholder="مثال: نقص في المستندات المطلوبة..."></textarea>
+        <label>سبب التحويل للمعالجة اليدوية</label>
+        <textarea id="rejectReason" placeholder="مثال: الطلب يحتاج معالجة خارج النظام..."></textarea>
       </div>
     </div>
     <div class="modal-foot">
-      <button class="btn btn-red" onclick="confirmReject()">تأكيد الرفض</button>
+      <button class="btn btn-primary" style="background:#9a7414" onclick="confirmReject()">تأكيد التحويل</button>
       <button class="btn btn-ghost" onclick="closeRejectModal()">إلغاء</button>
     </div>
   </div>
@@ -1730,19 +1755,34 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
     </div>
   </div>
 
-  <!-- صف ثلاثي: الجهات الداعمة + نوع الحافز + الدول -->
-  <div class="dash-grid-3">
+  <!-- شبكة رباعية: الجهات + عدد حسب النوع + مبالغ حسب النوع + نمو المبالغ سنوياً -->
+  <div class="dash-grid-4">
     <div class="dash-panel">
       <h3>🤝 الجهات الداعمة</h3>
       <div id="dashSupport"></div>
     </div>
     <div class="dash-panel">
-      <h3>📂 حسب نوع الحافز</h3>
+      <h3>📂 عدد الطلبات حسب نوع الحافز</h3>
       <div id="dashType"></div>
     </div>
     <div class="dash-panel">
-      <h3>🏆 أعلى الطلبات قيمةً</h3>
-      <div id="dashTopValue"></div>
+      <h3>💵 المبالغ حسب نوع الحافز</h3>
+      <div id="dashTypeAmount"></div>
+    </div>
+    <div class="dash-panel">
+      <h3>📈 نمو المبالغ سنوياً</h3>
+      <div id="dashGrowth"></div>
+    </div>
+  </div>
+
+  <!-- مودال التفاصيل (تنقيب) داخل اللوحة -->
+  <div id="dashDrill" onclick="if(event.target===this)closeDashDrill()">
+    <div class="dd-box">
+      <div class="dd-head">
+        <h3 id="dashDrillTitle">تفاصيل</h3>
+        <button onclick="closeDashDrill()" class="dd-x">✕</button>
+      </div>
+      <div id="dashDrillBody"></div>
     </div>
   </div>
 </div>
@@ -2001,7 +2041,7 @@ const STATUS_MAP = {
   review:     {label:"طلب الصرف تحت الدراسة", badge:"amber", step:3, icon:"🔍"},
   returned:   {label:"معاد لاستكمال نواقص صرف الحافز", badge:"orange", step:3, icon:"↩️"},
   disbursed:  {label:"تم صرف طلب الحافز", badge:"green", step:4, icon:"✅"},
-  rejected:   {label:"تم رفض طلب الحافز", badge:"red", step:0, icon:"❌"}
+  rejected:   {label:"تتم معالجته يدوياً", badge:"amber", step:0, icon:"✋"}
 };
 // تسلسل المراحل (بدون الرفض)
 const STATUS_FLOW = ["submitted","preliminary","review","disbursed"];
@@ -2163,9 +2203,11 @@ function enterApp(){
         STATE.requests=res.data;
         renderHomeKpis();
         saveRequests();
+        if(typeof updatePendingBadge==="function") updatePendingBadge();
       }
     });
   }
+  if(typeof updatePendingBadge==="function") updatePendingBadge();
 }
 
 /* ============================================================
@@ -2337,6 +2379,7 @@ const I18N = {
   "الخدمات":"Services",
   "إدارة":"Management",
   "لوحة الأدمن":"Admin Panel",
+  "مركز التحكم":"Control Center",
   "التقارير و KPI":"Reports & KPI",
   "مرحباً بك 👋":"Welcome 👋",
   "الخدمات السريعة":"Quick Services",
@@ -2347,6 +2390,7 @@ const I18N = {
   "متابعة حالة الطلبات المقدمة":"Track your submitted requests",
   "سجل الطلبات":"Requests Log",
   "‹ لوحة الأدمن":"‹ Admin Panel",
+  "‹ مركز التحكم":"‹ Control Center",
   "إدارة الطلبات":"Requests Management",
   "مراجعة واعتماد الطلبات المقدمة":"Review & approve submitted requests",
   "🖥️ وضع العرض":"🖥️ Display Mode",
@@ -2368,6 +2412,9 @@ const I18N = {
   "تم الصرف":"Disbursed",
   "مرفوض":"Rejected",
   "تم رفض طلب الحافز":"Incentive Request Rejected",
+  "تتم معالجته يدوياً":"Being Processed Manually",
+  "✋ معالجة يدوية":"✋ Manual Processing",
+  "تحويل للمعالجة اليدوية":"Transfer to Manual Processing",
 
   // الحالات الرسمية الكاملة
   "تم إرسال الطلب للصادرات لأخذ الموافقة":"Request submitted to Exports for approval",
@@ -3204,6 +3251,15 @@ function renderAdminKpis(){
     ${kpiHTML("⏳","قيد المعالجة",pending,"b-gold")}
     ${kpiHTML("✅","تم صرفها",approved,"b-blue")}
     ${kpiHTML("💰","إجمالي المصروف",fmtMoney(total),"b-red")}`;
+  updatePendingBadge();
+}
+/* عدّاد الطلبات التي تحتاج إجراء (معلّقة) على عنصر مركز التحكم */
+function updatePendingBadge(){
+  try{
+    const b=document.getElementById("pendingBadge"); if(!b)return;
+    const n=(STATE.requests||[]).filter(r=>r.status==="submitted"||r.status==="preliminary"||r.status==="review"||r.status==="returned").length;
+    if(n>0){ b.textContent=n; b.style.display="inline-flex"; } else { b.style.display="none"; }
+  }catch(e){}
 }
 function fillAdminFilters(){
   // تعبئة قوائم الخدمات والشركات (مرة واحدة)
@@ -3260,7 +3316,7 @@ function renderAdminTable(){
       actionBtns+=`<button class="act-btn approve" onclick="advanceStatus('${r.id}')" title="${STATUS_MAP[nextStage].label}">▶ ${nextStageShort(nextStage)}</button>`;
     }
     if(r.status!=="disbursed"&&r.status!=="rejected"){
-      actionBtns+=`<button class="act-btn reject" onclick="rejectRequest('${r.id}')">رفض</button>`;
+      actionBtns+=`<button class="act-btn" style="background:#fcefcf;color:#9a7414;border-color:#eacb7a" onclick="rejectRequest('${r.id}')">✋ معالجة يدوية</button>`;
     }
     actionBtns+=`<button class="act-btn" onclick="printRequestReport('${r.id}')">📄</button>`;
     const isExc2=(r.serviceId==="exceptional"||/استثنائي|التحول الرقمي/.test(r.serviceName||""));
@@ -3360,9 +3416,23 @@ function confirmMinistry(){
   renderAdminTable(); renderAdminKpis();
   toast(msg,"ok");
 }
+function addRequestNote(id){
+  const r=STATE.requests.find(x=>x.id===id); if(!r)return;
+  const ta=document.getElementById("newReqNote");
+  const text=(ta&&ta.value||"").trim();
+  if(!text){ toast("اكتب الملاحظة أولاً","err"); return; }
+  if(!r.fields) r.fields={};
+  if(!Array.isArray(r.fields.notes)) r.fields.notes=[];
+  const now=new Date();
+  const date=now.toLocaleDateString("en-GB")+" "+now.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});
+  r.fields.notes.push({ by:STATE.user||"مستخدم", date:date, text:text });
+  saveRequests(); editInSheet(r);
+  toast("✓ تمت إضافة الملاحظة","ok");
+  viewDetail(id); // إعادة عرض التفاصيل محدّثة
+}
 function rejectRequest(id){
   const r=STATE.requests.find(x=>x.id===id); if(!r)return;
-  if(r.status==="disbursed"){ toast("لا يمكن رفض طلب تم صرفه","err"); return; }
+  if(r.status==="disbursed"){ toast("لا يمكن تحويل طلب تم صرفه","err"); return; }
   showRejectModal(id);
 }
 let _rejectId=null;
@@ -3384,7 +3454,7 @@ function confirmReject(){
   saveRequests(); updateSheetStatus(r);
   closeRejectModal();
   renderAdminTable(); renderAdminKpis();
-  toast("تم رفض الطلب","err");
+  toast("تم تحويل الطلب للمعالجة اليدوية","ok");
 }
 function setStatus(id,status){
   const r=STATE.requests.find(x=>x.id===id); if(!r)return;
@@ -3699,6 +3769,22 @@ function viewDetail(id){
   html+=`</div>`;
   // شريط تقدّم المراحل
   html+=stageTrackerHTML(r.status);
+  // سجل الملاحظات/التعليقات على الطلب (للأدمن والمراجع)
+  if(STATE.role==="admin"||STATE.role==="reviewer"){
+    const notes=(r.fields&&Array.isArray(r.fields.notes))?r.fields.notes:[];
+    let notesHtml=notes.map(n=>`<div style="background:var(--bg);border-radius:10px;padding:10px 12px;margin-bottom:8px;border-right:3px solid var(--primary)">
+        <div style="font-size:.76rem;color:var(--text-soft);margin-bottom:3px">👤 ${n.by||"-"} · ${n.date||""}</div>
+        <div style="font-size:.9rem">${(n.text||"").replace(/</g,"&lt;")}</div>
+      </div>`).join("");
+    html+=`<div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">
+      <div style="font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:6px">📝 الملاحظات والتعليقات <span style="font-size:.74rem;font-weight:600;color:var(--text-soft)">(${notes.length})</span></div>
+      <div id="reqNotesList">${notesHtml||'<div style="color:var(--text-soft);font-size:.85rem;margin-bottom:8px">لا توجد ملاحظات بعد.</div>'}</div>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <textarea id="newReqNote" placeholder="أضف ملاحظة على الطلب..." style="flex:1;min-height:44px;resize:vertical;padding:9px 12px;border:1px solid var(--border);border-radius:10px;font-family:inherit;font-size:.9rem;background:var(--card-solid);color:var(--text)"></textarea>
+        <button class="btn btn-primary" style="align-self:flex-end;white-space:nowrap" onclick="addRequestNote('${r.id}')">💾 إضافة</button>
+      </div>
+    </div>`;
+  }
   // زر تقييم AI (للأدمن والمراجع فقط)
   if(STATE.role==="admin"||STATE.role==="reviewer"){
     html+=`<div style="margin-top:18px"><button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="aiEvaluate('${r.id}')">🤖 احصل على تقييم ذكي للطلب</button><div id="aiEvalContainer" style="display:none;margin-top:14px"></div></div>`;
@@ -3719,7 +3805,7 @@ function viewDetail(id){
       btns+=`<button class="btn btn-primary" onclick="advanceStatus('${r.id}');closeDetail()">▶ ${STATUS_MAP[next].label}</button>`;
     }
     if(r.status!=="disbursed"&&r.status!=="rejected"){
-      btns+=`<button class="btn btn-red" onclick="closeDetail();rejectRequest('${r.id}')">✕ رفض</button>`;
+      btns+=`<button class="btn btn-primary" style="background:#9a7414" onclick="closeDetail();rejectRequest('${r.id}')">✋ معالجة يدوية</button>`;
     }
     // إعادة لاستكمال النواقص (في مرحلة تحت الدراسة فقط)
     if(r.status==="review"){
@@ -3740,7 +3826,7 @@ function viewDetail(id){
 }
 function stageTrackerHTML(status){
   if(status==="rejected"){
-    return `<div style="margin-top:20px;padding:18px;background:#fde0de;border-radius:14px;text-align:center;color:#c41e16;font-weight:700;font-size:1rem">❌ تم رفض هذا الطلب</div>`;
+    return `<div style="margin-top:20px;padding:18px;background:#fcefcf;border-radius:14px;text-align:center;color:#9a7414;font-weight:700;font-size:1rem">✋ هذا الطلب تتم معالجته يدوياً</div>`;
   }
   const curStep=(STATUS_MAP[status]||{}).step||1;
   const totalSteps=STATUS_FLOW.length;
@@ -4846,13 +4932,13 @@ function renderDashboard(){
   // البطاقات (RTL: يمين←يسار): صرف الصادرات · استثنائي · HRDF · إجمالي الطلبات
   document.getElementById("dashKpis").innerHTML=`
     ${dashKpi(`<img src="${EXPORTS_ICON}" alt="الصادرات" style="height:100%;width:auto;object-fit:contain">`,"إجمالي مبلغ الصرف للصادرات",dashMoney(exportsDisb),
-        `${exportsList.length} طلب صادرات`,"t2 logo-kpi",changed)}
+        `${exportsList.length} طلب صادرات`,"t2 logo-kpi",changed,"exports")}
     ${dashKpi("⭐","إجمالي مبالغ الدعم الاستثنائي",dashMoney(excDisb),
-        `${excList.length} طلب استثنائي`,"t3",changed)}
+        `${excList.length} طلب استثنائي`,"t3",changed,"exceptional")}
     ${dashKpi(`<img src="${HRDF_ICON}" alt="HRDF" style="height:100%;width:auto;object-fit:contain">`,"إجمالي مبالغ دعم HRDF",dashMoney(hrdfDisb),
-        `${hrdfList.length} طلب عبر صندوق الموارد`,"t4 logo-kpi",changed)}
+        `${hrdfList.length} طلب عبر صندوق الموارد`,"t4 logo-kpi",changed,"hrdf")}
     ${dashKpi("💰","إجمالي المبالغ",dashMoney(all.reduce((s,r)=>s+(parseFloat(r.disbursed)||0),0)),
-        `المبلغ المصروف الفعلي`,"t1",changed)}`;
+        `المبلغ المصروف الفعلي`,"t1",changed,"all")}`;
 
   // توزيع الحالات
   renderDashStatus(all);
@@ -4860,9 +4946,11 @@ function renderDashboard(){
   // الجهات الداعمة: تجميع حسب اسم الجهة الفعلي من عمود "نوع الدعم" (هيئة تنمية الصادرات / مدن / HRDF)
   renderDashSupport(all,disb,stype);
   // حسب نوع الحافز — عدد الطلبات لكل خدمة (الشكل الأصلي)
-  renderDashList("dashType",groupBy(all,r=>r.serviceName),"📂","#f0b429");
-  // أعلى الطلبات قيمةً (عرض السعر) — يبرز أكبر الإنجازات
-  renderDashTopValue(all);
+  renderDashList("dashType",groupBy(all,r=>r.serviceName),"📂","#f0b429","service");
+  // المبالغ حسب نوع الحافز (جديد)
+  renderDashTypeAmount(all);
+  // نمو المبالغ سنوياً (جديد — بدل أعلى الطلبات قيمةً)
+  renderDashGrowth(all);
   // منحنى السنوات
   renderDashYearChart(all);
   if(STATE.lang==="en") setTimeout(applyTranslation,0);
@@ -4899,6 +4987,51 @@ function renderDashTopValue(all){
       <div class="tv-bar-val">${fmtNum(v)}</div>
       <div class="tv-bar" style="height:${h}%;background:linear-gradient(180deg,${g[0]},${g[1]})"></div>
       <div class="tv-bar-lbl">${shortName}<br><span style="font-size:.65rem;opacity:.7">${co}</span></div>
+    </div>`;
+  }).join("");
+  el.innerHTML=`<div class="tv-bars">${bars}</div>`;
+}
+
+/* قيمة الطلب الموحّدة للمبالغ (استثنائي=الصرف، غيره=عرض السعر)، بدون المرفوضة */
+function reqVal(r){
+  if(r.status==="rejected") return 0;
+  const isExc=r.serviceId==="exceptional"||/استثنائي|التحول الرقمي/.test(r.serviceName||"");
+  return isExc ? (parseFloat(r.disbursed)||0) : (parseFloat(r.priceOffer)||parseFloat(r.amount)||0);
+}
+
+/* المبالغ حسب نوع الحافز (أشرطة أفقية) */
+function renderDashTypeAmount(all){
+  const el=document.getElementById("dashTypeAmount");
+  if(!el) return;
+  const m={};
+  all.forEach(r=>{ const v=reqVal(r); if(v<=0)return; const k=(r.serviceName||"غير محدد").toString().trim(); m[k]=(m[k]||0)+v; });
+  const data=Object.entries(m).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  if(!data.length){el.innerHTML=`<div class="empty" style="padding:20px"><p>لا توجد بيانات</p></div>`;return;}
+  renderDashList("dashTypeAmount",data,"💵","#1a7e42","service");
+}
+
+/* نمو المبالغ سنوياً (أعمدة عمودية مع نسبة النمو) */
+function renderDashGrowth(all){
+  const el=document.getElementById("dashGrowth");
+  if(!el) return;
+  const buckets={};
+  all.forEach(r=>{ const v=reqVal(r); if(v<=0)return; const y=(r.date||"").toString().substring(0,4)||"—"; buckets[y]=(buckets[y]||0)+v; });
+  const keys=Object.keys(buckets).filter(k=>k!=="—").sort();
+  if(!keys.length){el.innerHTML=`<div class="empty" style="padding:20px"><p>لا توجد بيانات</p></div>`;return;}
+  const max=Math.max(...keys.map(k=>buckets[k]));
+  const grads=[["#1a7e42","#0f5e30"],["#29c1cf","#1a8e99"],["#f0b429","#c98f12"],["#5b8def","#3a63c4"],["#9b59b6","#7a3f94"],["#e67e22","#c0611a"],["#2ecc71","#1f9850"]];
+  const bars=keys.map((k,i)=>{
+    const v=buckets[k];
+    const prev=i>0?buckets[keys[i-1]]:0;
+    const g=grads[i%grads.length];
+    const h=Math.max(6,Math.round(v/max*100));
+    let growth="";
+    if(prev>0){ const pct=Math.round((v-prev)/prev*100); const up=pct>=0; growth=`<div style="font-size:.62rem;font-weight:700;color:${up?'#1a9e52':'#c0392b'}">${up?'▲':'▼'} ${Math.abs(pct)}%</div>`; }
+    return `<div class="tv-bar-col" title="${k}: ${fmtNum(v)} ر.س" onclick="dashDrill('year','${encodeURIComponent(k)}')">
+      <div class="tv-bar-val">${fmtNum(Math.round(v/1000))}k</div>
+      ${growth}
+      <div class="tv-bar" style="height:${h}%;background:linear-gradient(180deg,${g[0]},${g[1]})"></div>
+      <div class="tv-bar-lbl">${k}</div>
     </div>`;
   }).join("");
   el.innerHTML=`<div class="tv-bars">${bars}</div>`;
@@ -4976,7 +5109,7 @@ function renderDashSupport(all,disb,stype){
   el.innerHTML=rows.map(([name,v],i)=>{
     const pct=Math.round(v.sum/maxSum*100);
     const short=name.length>26?name.substring(0,26)+"…":name;
-    return `<div class="dash-stat-row">
+    return `<div class="dash-stat-row" onclick="dashDrill('entity','${'$'}{encodeURIComponent(name)}')">
       <span class="dsr-label" title="${name}">${short} <span style="color:var(--text-soft);font-size:.75rem">(${v.count})</span></span>
       <div class="dash-bar-track"><div class="dash-bar-fill c${i%7}" style="width:${pct}%"></div></div>
       <span class="dsr-val">${fmtNum(v.sum)}</span>
@@ -4986,8 +5119,9 @@ function renderDashSupport(all,disb,stype){
 function dashMoney(n){
   return `${fmtNum(n)}<span class="dk-cur">ريال</span>`;
 }
-function dashKpi(ic,lbl,val,sub,cls,flash){
-  return `<div class="dash-kpi">
+function dashKpi(ic,lbl,val,sub,cls,flash,drill){
+  const click=drill?` onclick="dashDrill('${drill}','x')"`:"";
+  return `<div class="dash-kpi"${click}>
     <div class="dk-ic ${cls}">${ic}</div>
     <div class="dk-lbl">${lbl}</div>
     <div class="dk-val ${flash?'flash':''}">${val}</div>
@@ -5037,7 +5171,8 @@ function renderDashStatus(all){
   rows.forEach(r=>{
     if(r.count<=0) return;
     const len=C*(r.pct/100);
-    segs+=`<circle class="dd-seg" cx="80" cy="80" r="${R}" fill="none"
+    segs+=`<circle class="dd-seg" cx="80" cy="80" r="${R}" fill="none" style="cursor:pointer"
+             onclick="dashDrill('status','${encodeURIComponent(r.st)}')"
              stroke="${r.color}" stroke-width="20" stroke-linecap="butt"
              stroke-dasharray="${len.toFixed(2)} ${(C-len).toFixed(2)}"
              stroke-dashoffset="${(-offset).toFixed(2)}"><title>${r.lbl}: ${r.count}</title></circle>`;
@@ -5045,7 +5180,7 @@ function renderDashStatus(all){
   });
 
   const legend=rows.map(r=>`
-    <div class="dl-row${r.count?"":" zero"}" title="${r.lbl}">
+    <div class="dl-row${r.count?"":" zero"}" title="${r.lbl}" onclick="dashDrill('status','${encodeURIComponent(r.st)}')">
       <span class="dl-dot" style="background:${r.color}"></span>
       <span class="dl-name">${r.icon} ${r.lbl}</span>
       <span class="dl-val">${r.count}</span>
@@ -5067,7 +5202,7 @@ function renderDashStatus(all){
       <div class="dash-legend">${legend}</div>
     </div>`;
 }
-function renderDashList(elId,data,icon,color){
+function renderDashList(elId,data,icon,color,drillType){
   const el=document.getElementById(elId);
   if(!data.length){el.innerHTML=`<div class="empty" style="padding:20px"><p>لا توجد بيانات</p></div>`;return;}
   const max=Math.max(...data.map(d=>d[1]));
@@ -5079,13 +5214,63 @@ function renderDashList(elId,data,icon,color){
     const lbl=(STATE.lang==="en"&&typeof tr==="function")?tr(label):label;
     const short=lbl.length>26?lbl.substring(0,26)+"…":lbl;
     const barStyle=grad?`width:${pct}%;background:${grad}`:`width:${pct}%`;
-    return `<div class="dash-stat-row">
+    const click=drillType?` onclick="dashDrill('${drillType}','${encodeURIComponent(label)}')"`:"";
+    return `<div class="dash-stat-row"${click}>
       <span class="dsr-label" title="${lbl}">${short}</span>
       <div class="dash-bar-track"><div class="dash-bar-fill c${i%7}" style="${barStyle}"></div></div>
       <span class="dsr-val">${fmtNum(val)} <span style="color:var(--text-soft);font-weight:500;font-size:.78rem">(${share}%)</span></span>
     </div>`;
   }).join("");
 }
+
+/* مفتاح الجهة الداعمة لطلب (نفس منطق لوحة الجهات) */
+function supportKey(r){
+  const f=(r.supportType||"").toString().trim();
+  const j=(r.entityName||"").toString().trim();
+  if(/تنمية الصادرات|Saudi Exports|صادرات/i.test(f)) return "هيئة تنمية الصادرات";
+  return j||f||"غير محدد";
+}
+
+/* فتح مودال التنقيب: يعرض الطلبات المطابقة للفئة المضغوطة */
+function dashDrill(type,encKey){
+  const key=decodeURIComponent(encKey);
+  const all=STATE.requests||[];
+  let list=[], title=key;
+  if(type==="service"){ list=all.filter(r=>(r.serviceName||"")===key); title="الخدمة: "+key; }
+  else if(type==="entity"){ list=all.filter(r=>r.status!=="rejected"&&supportKey(r)===key); title="الجهة الداعمة: "+key; }
+  else if(type==="year"){ list=all.filter(r=>(r.date||"").toString().substring(0,4)===key); title="سنة "+key; }
+  else if(type==="status"){ list=all.filter(r=>r.status===key); const lbl=(STATUS_MAP[key]||{}).label||key; title="الحالة: "+lbl; }
+  else if(type==="exports"){ list=all.filter(r=>r.status!=="rejected"&&/تنمية الصادرات/.test(reqEntity(r))); title="طلبات الصادرات"; }
+  else if(type==="hrdf"){ list=all.filter(r=>r.status!=="rejected"&&/HRDF/.test(reqEntity(r))); title="طلبات دعم HRDF"; }
+  else if(type==="exceptional"){ list=all.filter(r=>r.status!=="rejected"&&!/تنمية الصادرات/.test(reqEntity(r))&&!/HRDF/.test(reqEntity(r))); title="الدعم الاستثنائي"; }
+  else if(type==="all"){ list=all.filter(r=>r.status!=="rejected"); title="جميع المبالغ"; }
+  openDashDrill(title, list);
+}
+
+function openDashDrill(title, list){
+  document.getElementById("dashDrillTitle").textContent=title+" ("+list.length+")";
+  const body=document.getElementById("dashDrillBody");
+  if(!list.length){ body.innerHTML=`<div class="empty" style="padding:30px;text-align:center"><div class="ei">📭</div><p>لا توجد طلبات</p></div>`; }
+  else{
+    // ترتيب تنازلي بالمبلغ
+    const sorted=list.slice().sort((a,b)=>reqVal(b)-reqVal(a));
+    const totalAmt=sorted.reduce((s,r)=>s+reqVal(r),0);
+    const rows=sorted.map(r=>{
+      const st=STATUS_MAP[r.status]||STATUS_MAP.submitted;
+      const v=reqVal(r);
+      return `<div class="dd-row">
+        <div class="dd-main">
+          <b>${r.refNo||"-"} — ${r.company||"-"}</b>
+          <span>${r.serviceName||""} · <span class="badge ${st.badge}" style="font-size:.68rem;padding:1px 7px">${st.label}</span></span>
+        </div>
+        <div class="dd-amt">${fmtNum(v)} ر.س</div>
+      </div>`;
+    }).join("");
+    body.innerHTML=`<div class="dd-sum"><span>عدد الطلبات: ${sorted.length}</span><span>الإجمالي: ${fmtNum(totalAmt)} ر.س</span></div>${rows}`;
+  }
+  document.getElementById("dashDrill").classList.add("show");
+}
+function closeDashDrill(){ document.getElementById("dashDrill").classList.remove("show"); }
 function renderDashYearChart(all){
   const el=document.getElementById("dashYearChart");
   if(!all.length){el.innerHTML=`<div class="empty"><div class="ei">📈</div><p>لا توجد بيانات</p></div>`;return;}
@@ -5453,7 +5638,7 @@ function printFullReport(){
     <div class="kpi"><div class="v">${all.length}</div><div class="l">إجمالي الطلبات</div></div>
     <div class="kpi"><div class="v">${approved.length}</div><div class="l">معتمدة</div></div>
     <div class="kpi"><div class="v">${pending}</div><div class="l">قيد المراجعة</div></div>
-    <div class="kpi"><div class="v">${rejected}</div><div class="l">مرفوضة</div></div>
+    <div class="kpi"><div class="v">${rejected}</div><div class="l">معالجة يدوية</div></div>
   </div>
   <div class="kpis">
     <div class="kpi"><div class="v" style="font-size:1.3rem">${fmtMoney(total)}</div><div class="l">إجمالي المبالغ المطلوبة</div></div>
@@ -5570,9 +5755,20 @@ function fetchFromSheet(){
       saveRequests();
       if(document.getElementById("page-myrequests").classList.contains("active"))renderMyRequests();
       if(STATE.role==="admin"||STATE.role==="reviewer"){ const a=document.getElementById("page-admin"); if(a&&a.classList.contains("active"))renderAdminTable(); }
+      if(typeof updatePendingBadge==="function") updatePendingBadge();
     }
   });
 }
+
+/* إغلاق أي نافذة مفتوحة بمفتاح Esc (راحة الاستخدام) */
+document.addEventListener("keydown",function(e){
+  if(e.key!=="Escape") return;
+  const dd=document.getElementById("dashDrill"); if(dd&&dd.classList.contains("show")){ closeDashDrill(); return; }
+  const openOverlay=document.querySelector(".overlay.show");
+  if(openOverlay){ openOverlay.classList.remove("show"); return; }
+  const det=document.getElementById("detailModal"); if(det&&det.classList.contains("show")){ if(typeof closeDetail==="function")closeDetail(); return; }
+  const ds=document.getElementById("dashboardScreen"); if(ds&&ds.classList.contains("show")){ closeDashboard(); return; }
+});
 
 /* ===== تأثير الإمالة 3D التفاعلي للكروت ===== */
 function attachTilt(){
