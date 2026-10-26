@@ -799,6 +799,11 @@ tbody tr:hover{background:var(--primary-light);transform:scale(1.005)}
 /* في العمود الضيق: نصغّر عناصر القوائم قليلاً لتبقى مقروءة */
 @media(min-width:1501px){.dash-grid-4 .dash-panel{padding:16px}.dash-grid-4 .dash-panel h3{font-size:.95rem;margin-bottom:10px}.dash-grid-4 .dash-stat-row{font-size:.82rem;padding:5px 0}.dash-grid-4 .dash-bar-track{max-width:70px;margin:0 8px}.dash-grid-4 .dsr-val{font-size:.8rem}.dash-grid-4 .tv-bars{height:175px}}
 .nav-badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#e67e22;color:#fff;font-size:.72rem;font-weight:800;margin-inline-start:6px}
+/* أشرطة التقارير القابلة للضغط */
+.rep-bar-click{cursor:pointer;border-radius:10px;padding:6px 8px;margin:-6px -8px;transition:background .15s,transform .15s}
+.rep-bar-click:hover{background:var(--primary-light);transform:translateX(-3px)}
+.tc-pt{cursor:pointer}
+.tc-pt:hover circle{r:8}
 /* شارة الحافز المالي على بطاقة الخدمة */
 .svc-inc{display:flex;align-items:baseline;gap:8px;margin:10px 0 14px;padding:8px 12px;border-radius:12px;background:var(--primary-light);border:1px solid var(--glass-border)}
 .svc-inc .si-pct{font-size:1.25rem;font-weight:800;color:var(--primary);line-height:1}
@@ -812,7 +817,7 @@ tbody tr:hover{background:var(--primary-light);transform:scale(1.005)}
 #dashboardScreen .dash-kpi:hover{transform:translateY(-3px);box-shadow:0 10px 26px rgba(20,40,30,.14)}
 #dashboardScreen .dash-donut svg .dd-seg{cursor:pointer}
 /* مودال التنقيب */
-#dashDrill{display:none;position:fixed;inset:0;z-index:850;background:rgba(10,20,15,.55);backdrop-filter:blur(3px);align-items:center;justify-content:center;padding:24px}
+#dashDrill{display:none;position:fixed;inset:0;z-index:1200;background:rgba(10,20,15,.55);backdrop-filter:blur(3px);align-items:center;justify-content:center;padding:24px}
 #dashDrill.show{display:flex}
 #dashDrill .dd-box{background:var(--card-solid);border-radius:20px;box-shadow:0 24px 60px rgba(0,0,0,.3);width:min(720px,96vw);max-height:84vh;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--glass-border)}
 #dashDrill .dd-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;background:var(--grad-primary)}
@@ -1601,6 +1606,52 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
 </div>
 
 <!-- مودال رفع الطلب للصادرات (إدخال رقم الطلب في الصادرات) -->
+<!-- مودال تعديل المبالغ فقط (بدون إعادة تعبئة باقي الطلب) -->
+<div class="overlay" id="amountsOverlay">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-head">
+      <div class="ti"><h2>💵 تعديل المبالغ</h2><p>تعديل المبالغ والعملة فقط — باقي بيانات الطلب تبقى كما هي</p></div>
+      <button class="close-x" onclick="closeAmountsModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:18px;font-size:.9rem;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <span><span style="color:var(--muted)">الطلب:</span> <b id="amtReqRef" style="color:var(--primary)">—</b></span>
+        <span id="amtReqSvc" style="color:var(--muted);font-size:.84rem"></span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px">
+        <div class="field" style="margin-bottom:0">
+          <label>عرض السعر</label>
+          <input type="number" id="amtPrice" placeholder="0" oninput="updateAmtPreview()">
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label>نوع العملة</label>
+          <select id="amtCurrency">
+            <option value="ريال سعودي">ريال سعودي (SAR)</option>
+            <option value="دولار أمريكي (USD)">دولار أمريكي (USD)</option>
+            <option value="يورو (EUR)">يورو (EUR)</option>
+            <option value="درهم إماراتي (AED)">درهم إماراتي (AED)</option>
+            <option value="جنيه مصري (EGP)">جنيه مصري (EGP)</option>
+            <option value="جنيه إسترليني (GBP)">جنيه إسترليني (GBP)</option>
+          </select>
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label>مبلغ المطالبة</label>
+          <input type="number" id="amtClaim" placeholder="0">
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label>مبلغ الصرف</label>
+          <input type="number" id="amtDisb" placeholder="0" oninput="updateAmtPreview()">
+        </div>
+      </div>
+      <div id="amtPreview" style="display:none;margin-top:16px;background:linear-gradient(135deg,var(--primary-light),transparent);border-right:4px solid var(--primary);border-radius:12px;padding:12px 14px;font-size:.88rem"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" onclick="saveAmounts()">💾 حفظ المبالغ</button>
+      <button class="btn btn-ghost" onclick="closeAmountsModal()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="ministryOverlay">
   <div class="modal" style="max-width:520px">
     <div class="modal-head">
@@ -1784,15 +1835,16 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
     </div>
   </div>
 
-  <!-- مودال التفاصيل (تنقيب) داخل اللوحة -->
-  <div id="dashDrill" onclick="if(event.target===this)closeDashDrill()">
-    <div class="dd-box">
-      <div class="dd-head">
-        <h3 id="dashDrillTitle">تفاصيل</h3>
-        <button onclick="closeDashDrill()" class="dd-x">✕</button>
-      </div>
-      <div id="dashDrillBody"></div>
+</div>
+
+<!-- مودال التفاصيل (تنقيب) — خارج لوحة العرض ليعمل في كل الصفحات -->
+<div id="dashDrill" onclick="if(event.target===this)closeDashDrill()">
+  <div class="dd-box">
+    <div class="dd-head">
+      <h3 id="dashDrillTitle">تفاصيل</h3>
+      <button onclick="closeDashDrill()" class="dd-x">✕</button>
     </div>
+    <div id="dashDrillBody"></div>
   </div>
 </div>
 
@@ -2727,7 +2779,7 @@ function svcCardHTML(s){
   const inc=(typeof incentiveOf==="function")?incentiveOf(s.id):null;
   const chip = inc
     ? `<div class="svc-inc"><span class="si-pct">${inc.pct}%</span><span class="si-cap">حتى ${fmtNum(inc.cap)} ر.س / سنوياً</span></div>`
-    : `<div class="svc-inc svc-inc-ex"><span class="si-pct">⭐</span><span class="si-cap">حسب قرار الإدارة</span></div>`;
+    : "";
   return `<div class="svc-card">
     <div class="svc-icon">${s.icon}</div>
     <h3>${s.name}</h3>
@@ -2888,8 +2940,7 @@ function calcIncentive(svcId, price){
 }
 function incentiveBannerHTML(svcId){
   const inc=incentiveOf(svcId);
-  if(!inc) return `<div style="background:var(--bg);border:1px dashed var(--border);border-radius:14px;padding:12px 16px;margin-bottom:20px;font-size:.86rem;color:var(--text-soft)">
-      ⭐ هذا دعم استثنائي — تُحدَّد نسبة التعويض والمبلغ حسب قرار الإدارة والجهة الداعمة.</div>`;
+  if(!inc) return "";
   return `<div style="background:linear-gradient(135deg,var(--primary-light),transparent);border:1px solid var(--glass-border);border-right:4px solid var(--primary);border-radius:14px;padding:14px 16px;margin-bottom:20px">
     <div style="font-weight:800;color:var(--primary);margin-bottom:10px;font-size:.95rem">💰 الحافز المالي لهذه الخدمة</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
@@ -3047,7 +3098,8 @@ function submitForm(){
       const cbs=document.querySelectorAll(".cb-"+f.k);
       const selected=[];
       cbs.forEach(cb=>{ if(cb.checked && cb.value!=="الكل") selected.push(cb.value); });
-      if(f.req && selected.length===0){ ok=false; }
+      // في وضع التعديل: عدم الاختيار يعني "اتركه كما هو"
+      if(f.req && selected.length===0 && !STATE._editingReqId){ ok=false; }
       data[f.k]=selected.join("، ");
       continue;
     }
@@ -3067,7 +3119,9 @@ function submitForm(){
       if(!customE){ ok=false; if(!firstBad)firstBad=otherE; if(otherE)otherE.style.borderColor="var(--red)"; }
       else { v=customE; if(otherE)otherE.style.borderColor=""; }
     }
-    if(f.req&&!v){ ok=false; if(!firstBad)firstBad=el; if(el)el.style.borderColor="var(--red)"; }
+    // في وضع التعديل: الحقل الفارغ يعني "اتركه كما هو" — لا نمنع الحفظ
+    // (الطلبات القديمة قد لا تحمل كل الحقول في عمود "بيانات إضافية")
+    if(f.req && !v && !STATE._editingReqId){ ok=false; if(!firstBad)firstBad=el; if(el)el.style.borderColor="var(--red)"; }
     else if(el) el.style.borderColor="";
     data[f.k]=v;
   }
@@ -3395,6 +3449,9 @@ function renderAdminTable(){
     if(r.status!=="disbursed"&&r.status!=="rejected"){
       actionBtns+=`<button class="act-btn" style="background:#fcefcf;color:#9a7414;border-color:#eacb7a" onclick="rejectRequest('${r.id}')">✋ معالجة يدوية</button>`;
     }
+    if(r.status!=="rejected"){
+      actionBtns+=`<button class="act-btn" title="تعديل المبالغ" onclick="openAmountsModal('${r.id}')">💵</button>`;
+    }
     actionBtns+=`<button class="act-btn" onclick="printRequestReport('${r.id}')">📄</button>`;
     const isExc2=(r.serviceId==="exceptional"||/استثنائي|التحول الرقمي/.test(r.serviceName||""));
     const entity2=(isExc2&&r.entityName)?r.entityName:(r.supportType||"—");
@@ -3493,6 +3550,61 @@ function confirmMinistry(){
   renderAdminTable(); renderAdminKpis();
   toast(msg,"ok");
 }
+/* ===== تعديل المبالغ فقط (بدون المساس بباقي بيانات الطلب) ===== */
+let _amtId=null;
+function openAmountsModal(id){
+  const r=STATE.requests.find(x=>x.id===id); if(!r){ toast("الطلب غير موجود","err"); return; }
+  _amtId=id;
+  document.getElementById("amtReqRef").textContent=r.refNo||"—";
+  document.getElementById("amtReqSvc").textContent=r.serviceName||"";
+  document.getElementById("amtPrice").value=(parseFloat(r.priceOffer)||parseFloat(r.amount)||"")||"";
+  document.getElementById("amtClaim").value=(parseFloat(r.claimAmount)||"")||"";
+  document.getElementById("amtDisb").value=(parseFloat(r.disbursed)||"")||"";
+  const cur=document.getElementById("amtCurrency");
+  const want=(r.currency||"ريال سعودي").toString();
+  cur.value=[...cur.options].some(o=>o.value===want)?want:"ريال سعودي";
+  updateAmtPreview();
+  document.getElementById("amountsOverlay").classList.add("show");
+}
+function closeAmountsModal(){ document.getElementById("amountsOverlay").classList.remove("show"); _amtId=null; }
+/* معاينة الدعم المتوقع والفرق أثناء التعديل */
+function updateAmtPreview(){
+  const box=document.getElementById("amtPreview"); if(!box||!_amtId) return;
+  const r=STATE.requests.find(x=>x.id===_amtId); if(!r){ box.style.display="none"; return; }
+  const c=calcIncentive(r.serviceId, document.getElementById("amtPrice").value);
+  if(!c){ box.style.display="none"; return; }
+  const paid=parseFloat(document.getElementById("amtDisb").value)||0;
+  const diff=paid-c.amount;
+  box.style.display="";
+  box.innerHTML=`<b style="color:var(--primary)">الدعم المتوقع (${c.pct}%):</b> ${fmtNum(c.amount)} ر.س`
+    + (c.capped?` <span style="color:var(--text-soft);font-size:.8rem">(بلغ الحد الأقصى ${fmtNum(c.cap)})</span>`:"")
+    + (paid>0?`<br><b style="color:var(--primary)">الفرق عن المتوقع:</b> <span style="color:${diff>=0?'var(--green)':'#b45309'};font-weight:800">${diff>=0?'+':''}${fmtNum(diff)} ر.س</span>`:"");
+}
+function saveAmounts(){
+  if(!_amtId) return;
+  const r=STATE.requests.find(x=>x.id===_amtId); if(!r) return;
+  const price=document.getElementById("amtPrice").value.trim();
+  const claim=document.getElementById("amtClaim").value.trim();
+  const disb =document.getElementById("amtDisb").value.trim();
+  const cur  =document.getElementById("amtCurrency").value;
+  // نكتب فقط ما أُدخل (الفارغ = صفر صريح مسموح عبر "0")
+  if(price!==""){ r.priceOffer=price; r.amount=price; }
+  if(claim!=="") r.claimAmount=claim; else r.claimAmount=r.claimAmount||"0";
+  if(disb!=="")  r.disbursed=disb;    else r.disbursed=r.disbursed||"0";
+  r.currency=cur;
+  if(!r.fields) r.fields={};
+  r.fields.currency=cur;
+  if(price!=="") r.fields.price_offer=price;
+  if(claim!=="") r.fields.claim_amount=claim;
+  if(disb!=="")  r.fields.disbursed_amount=disb;
+  r.reviewer=STATE.user;
+  saveRequests(); editInSheet(r);
+  closeAmountsModal();
+  toast("✓ تم تحديث المبالغ","ok");
+  if(typeof renderAdminTable==="function") try{ renderAdminTable(); renderAdminKpis(); }catch(e){}
+  if(typeof renderMyRequests==="function") try{ renderMyRequests(); }catch(e){}
+}
+
 function addRequestNote(id){
   const r=STATE.requests.find(x=>x.id===id); if(!r)return;
   const ta=document.getElementById("newReqNote");
@@ -3830,10 +3942,7 @@ function viewDetail(id){
   // بطاقة الحافز المالي للخدمة + الدعم المتوقع مقابل المصروف فعلياً
   (function(){
     const inc=incentiveOf(r.serviceId);
-    if(!inc){
-      html+=`<div style="background:var(--bg);border:1px dashed var(--border);border-radius:12px;padding:10px 14px;margin-top:8px;font-size:.84rem;color:var(--text-soft)">⭐ دعم استثنائي — النسبة والمبلغ حسب قرار الإدارة والجهة الداعمة.</div>`;
-      return;
-    }
+    if(!inc) return;   // الدعم الاستثنائي: بلا بطاقة حافز
     const c=calcIncentive(r.serviceId, r.priceOffer||r.amount);
     const paid=parseFloat(r.disbursed)||0;
     html+=`<div style="background:linear-gradient(135deg,var(--primary-light),transparent);border-right:4px solid var(--primary);border-radius:12px;padding:12px 14px;margin-top:8px">
@@ -3895,7 +4004,9 @@ function viewDetail(id){
     // (يُمنع التعديل بعد الرفض؛ ويُسمح في باقي المراحل)
     if(r.status!=="rejected"){
       const editFn = (r.serviceId==="exceptional") ? "editExceptional" : "editRequest";
-      btns+=`<button class="btn btn-primary" onclick="closeDetail();${editFn}('${r.id}')">✏️ تعديل الطلب</button>`;
+      // تعديل المبالغ فقط (الأسرع والأكثر استخداماً) ثم تعديل الطلب كاملاً
+      btns+=`<button class="btn btn-primary" onclick="closeDetail();openAmountsModal('${r.id}')">💵 تعديل المبالغ</button>`;
+      btns+=`<button class="btn btn-ghost" onclick="closeDetail();${editFn}('${r.id}')">✏️ تعديل الطلب</button>`;
     }
     if(next){
       btns+=`<button class="btn btn-primary" onclick="advanceStatus('${r.id}');closeDetail()">▶ ${STATUS_MAP[next].label}</button>`;
@@ -4156,10 +4267,10 @@ function isPasswordStrong(pwd){
 function renderReports(){
   renderReportKpis();
   renderTimeChart();
-  drawBarChart("chartByService",groupCount(r=>r.serviceName),"خدمة");
-  drawBarChart("chartByStatus",groupCount(r=>(STATUS_MAP[r.status]||STATUS_MAP.submitted).label),"حالة");
-  drawBarChart("chartByCountry",topCount(r=>r.country,8),"دولة");
-  drawBarChart("chartByCompany",groupCount(r=>(r.fields&&r.fields.company)||r.company||"-"),"شركة");
+  drawBarChart("chartByService",groupCount(r=>r.serviceName),"خدمة","service");
+  drawBarChart("chartByStatus",groupCount(r=>(STATUS_MAP[r.status]||STATUS_MAP.submitted).label),"حالة","statusLabel");
+  drawBarChart("chartByCountry",topCount(r=>r.country,8),"دولة","country");
+  drawBarChart("chartByCompany",groupCount(r=>(r.fields&&r.fields.company)||r.company||"-"),"شركة","company");
   // تبويب مالي
   renderFinancialTab();
   // تبويب الأداء
@@ -4700,14 +4811,18 @@ function renderTimeChart(){
         <path d="${areaPath}" fill="url(#areaGrad)"/>
         <path d="${linePath}" fill="none" stroke="var(--primary)" stroke-width="3" stroke-linejoin="round"/>
         <path d="${dPath}" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-dasharray="5,4" stroke-linejoin="round" opacity=".85"/>
-        ${points.map((p,i)=>`
-          <g>
+        ${points.map((p,i)=>{
+          const half=(xStep||80)/2;
+          return `
+          <g class="tc-pt" onclick="dashDrill('period','${dkey(p.k)}')">
+            <rect x="${p.x-half}" y="${pad-10}" width="${half*2}" height="${ch+20}" fill="transparent"/>
             <circle cx="${p.x}" cy="${p.y}" r="6" fill="var(--card-solid)" stroke="var(--primary)" stroke-width="3"/>
             <circle cx="${dPoints[i].x}" cy="${dPoints[i].y}" r="4" fill="var(--green)"/>
             <text x="${p.x}" y="${h-pad+18}" font-size="11" font-weight="700" fill="var(--text)" text-anchor="middle">${p.k}</text>
             <text x="${p.x}" y="${p.y-12}" font-size="11" font-weight="800" fill="var(--primary)" text-anchor="middle">${p.v}</text>
-          </g>
-        `).join("")}
+            <title>${p.k} — ${p.v} طلب (اضغط للتفاصيل)</title>
+          </g>`;
+        }).join("")}
       </svg>
     </div>
     <div style="display:flex;gap:18px;justify-content:center;margin-top:12px;font-size:.82rem;color:var(--text-soft);flex-wrap:wrap">
@@ -4767,14 +4882,15 @@ function groupCount(fn,arr){
   return Object.entries(m).sort((a,b)=>b[1]-a[1]);
 }
 function topCount(fn,n){return groupCount(fn).slice(0,n);}
-function drawBarChart(elId,data,unit){
+function drawBarChart(elId,data,unit,drillType){
   const el=document.getElementById(elId);
   if(!data.length){el.innerHTML=`<div class="empty"><div class="ei">📊</div><p>لا توجد بيانات</p></div>`;return;}
   const max=Math.max(...data.map(d=>d[1]));
   el.innerHTML=`<div style="display:flex;flex-direction:column;gap:16px">`+
     data.map(([label,val])=>{
       const pct=Math.round(val/max*100);
-      return `<div>
+      const click=drillType?` onclick="dashDrill('${drillType}','${dkey(label)}')" class="rep-bar-click" title="اضغط لعرض التفاصيل"`:"";
+      return `<div${click}>
         <div style="display:flex;justify-content:space-between;margin-bottom:7px;font-size:.86rem">
           <span style="font-weight:600">${label}</span><b style="color:var(--primary);font-size:.95rem">${val}</b>
         </div>
@@ -5191,7 +5307,12 @@ function dashDrill(type,encKey){
   if(type==="service"){ list=all.filter(r=>(r.serviceName||"")===key); title="الخدمة: "+key; }
   else if(type==="entity"){ list=all.filter(r=>r.status!=="rejected"&&supportKey(r)===key); title="الجهة الداعمة: "+key; }
   else if(type==="year"){ list=all.filter(r=>(r.date||"").toString().substring(0,4)===key); title="سنة "+key; }
+  // فترة: سنة (2026) أو شهر (2026-01) حسب وضع المنحنى
+  else if(type==="period"){ const n=key.length; list=all.filter(r=>(r.date||"").toString().substring(0,n)===key); title=(n===4?"سنة ":"شهر ")+key; }
   else if(type==="status"){ list=all.filter(r=>r.status===key); const lbl=(STATUS_MAP[key]||{}).label||key; title="الحالة: "+lbl; }
+  else if(type==="statusLabel"){ list=all.filter(r=>((STATUS_MAP[r.status]||STATUS_MAP.submitted).label)===key); title="الحالة: "+key; }
+  else if(type==="country"){ list=all.filter(r=>(r.country||"-")===key); title="الدولة: "+key; }
+  else if(type==="company"){ list=all.filter(r=>(((r.fields&&r.fields.company)||r.company||"-"))===key); title="الشركة: "+key; }
   else if(type==="exports"){ list=all.filter(r=>r.status!=="rejected"&&/تنمية الصادرات/.test(reqEntity(r))); title="طلبات الصادرات"; }
   else if(type==="hrdf"){ list=all.filter(r=>r.status!=="rejected"&&/HRDF/.test(reqEntity(r))); title="طلبات دعم HRDF"; }
   else if(type==="exceptional"){ list=all.filter(r=>r.status!=="rejected"&&!/تنمية الصادرات/.test(reqEntity(r))&&!/HRDF/.test(reqEntity(r))); title="الدعم الاستثنائي"; }
