@@ -1859,7 +1859,7 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
     </div>
     <div class="dash-title" style="text-align:center;flex:1">
       <h1>لوحة عرض حوافز الصادرات</h1>
-      <p>مجموعة بحرة للكهرباء — برنامج الصادرات السعودية</p>
+      <p>مجموعة بحرة للكهرباء — هيئة تنمية الصادرات</p>
       <div class="dash-live"><span class="dot"></span> مباشر — يتحدّث تلقائياً</div>
     </div>
     <div style="display:flex;align-items:center;gap:14px">
@@ -2147,7 +2147,7 @@ const SERVICES = [
     fields:[
       {k:"support_type",l:"نوع الدعم",t:"text",req:true},
       {k:"service_type",l:"نوع الخدمة",t:"text",req:false},
-      {k:"supporting_entity",l:"الجهة الداعمة",t:"select",req:true,opts:["صندوق تنمية الموارد البشرية (HRDF)","برنامج الصادرات السعودية (Saudi Exports)","المؤسسة العامة للتأمينات الاجتماعية (GOSI)","هيئة المدن الصناعية ومناطق التقنية (MODON)","الهيئة العامة للمنشآت الصغيرة والمتوسطة (منشآت)","وزارة الصناعة والثروة المعدنية","أخرى"]},
+      {k:"supporting_entity",l:"الجهة الداعمة",t:"select",req:true,opts:["صندوق تنمية الموارد البشرية (HRDF)","هيئة تنمية الصادرات","المؤسسة العامة للتأمينات الاجتماعية (GOSI)","هيئة المدن الصناعية ومناطق التقنية (MODON)","الهيئة العامة للمنشآت الصغيرة والمتوسطة (منشآت)","وزارة الصناعة والثروة المعدنية","أخرى"]},
       {k:"support_date",l:"تاريخ صرف الدعم",t:"date",req:true},
       {k:"company",l:"الشركة",t:"select",req:true,opts:COMPANIES},
       {k:"price_offer",l:"عرض السعر",t:"number",req:false},
@@ -2493,7 +2493,7 @@ const I18N = {
   "متابعة فورية لحالة طلباتك":"Real-time tracking of your requests",
   "تقارير ومؤشرات أداء شاملة":"Comprehensive reports & KPIs",
   "© مجموعة بحرة للكهرباء":"© Bahra Electric Group",
-  "مجموعة بحرة للكهرباء — برنامج الصادرات السعودية":"Bahra Electric Group — Saudi Exports Program",
+  "مجموعة بحرة للكهرباء — هيئة تنمية الصادرات":"Bahra Electric Group — Saudi Export Development Authority",
   "منصة موحدة لتقديم ومتابعة طلبات خدمات دعم الحوافز":"A unified platform to submit & track incentives support requests",
   "هذا الرقم الذي يصدر من بوابة الصادرات بعد رفع الطلب رسمياً":"The number issued by the Exports portal after official submission",
   "⚠️ ميزة AI تعمل فقط بعد ربط الشيت وتفعيل مفتاح Groq API.":"⚠️ AI works only after linking the Sheet & activating the Groq API key.",
@@ -3111,6 +3111,7 @@ function editRequest(reqId){
       if(fld.k==="disbursed_amount") val=val||r.disbursed;
       if(fld.k==="company") val=val||r.company;
       if(fld.k==="currency") val=val||r.currency;
+      if(fld.k==="supporting_entity") val=normEntity(val||r.entityName);
       if(val==null||val==="") return;
       // للـ select: لو القيمة خارج الخيارات نستخدم "أخرى" + النص
       if(el.tagName==="SELECT"){
@@ -3148,7 +3149,7 @@ function editExceptional(reqId){
     setV("fld_claim_amount", f.claim_amount||r.claimAmount);
     setV("fld_disbursed_amount", f.disbursed_amount||r.disbursed);
     // الجهة الداعمة: لو ضمن القائمة نختارها، وإلا "أخرى" + نص
-    const entVal=f.supporting_entity||r.entityName||"";
+    const entVal=normEntity(f.supporting_entity||r.entityName||"");
     const entSel=document.getElementById("fld_supporting_entity");
     if(entSel && entVal){
       const exists=[...entSel.options].some(o=>o.value===entVal);
@@ -3416,6 +3417,8 @@ function sortNewestFirst(arr){
   });
 }
 
+/* توحيد اسم الجهة: "برنامج الصادرات السعودية (Saudi Exports)" القديم = "هيئة تنمية الصادرات" */
+function normEntity(v){ return /برنامج الصادرات|Saudi Exports/i.test(String(v||""))?"هيئة تنمية الصادرات":v; }
 function reqEntity(r){
   // أولاً: أي خدمة من خدمات الحوافز العشر هي خدمة "هيئة تنمية الصادرات" دائماً،
   // مهما كانت خانة الجهة (J) فارغة أو مكتوبة خطأ — هذا يمنع تصنيف الدعم القانوني
@@ -4034,7 +4037,8 @@ function viewDetail(id){
   if(s){
     for(const f of s.fields){
       if(f.t==="file")continue;
-      const v=(r.fields||{})[f.k]||"-";
+      let v=(r.fields||{})[f.k]||"-";
+      if(f.k==="supporting_entity") v=normEntity(v);
       html+=`<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:8px">
         <span style="color:var(--text-soft)">${f.l}</span><b>${esc(v||"-")}</b></div>`;
     }
@@ -4828,7 +4832,7 @@ function exportReportCSV(){
   const rows=all.map((r,i)=>{
     const f=r.fields||{};
     const isExc=(r.serviceId==="exceptional"||/استثنائي|التحول الرقمي/.test(r.serviceName||""));
-    const entity=(isExc&&r.entityName)?r.entityName:(r.entityName||f.supporting_entity||f.exhibition_name||"");
+    const entity=normEntity((isExc&&r.entityName)?r.entityName:(r.entityName||f.supporting_entity||f.exhibition_name||""));
     return [
       i+1,
       r.refNo||"",
@@ -5715,7 +5719,7 @@ function printMyReport(){
   </style></head><body>
   <div class="head">
     <h1>تقرير طلبات الحوافز</h1>
-    <p>مجموعة بحرة للكهرباء — برنامج الصادرات السعودية</p>
+    <p>مجموعة بحرة للكهرباء — هيئة تنمية الصادرات</p>
     <p><b>منشئ الطلبات:</b> ${esc(STATE.user)} &nbsp;|&nbsp; <b>التاريخ:</b> ${now}</p>
   </div>
   <div class="cards">
