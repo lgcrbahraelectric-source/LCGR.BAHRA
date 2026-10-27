@@ -1877,7 +1877,7 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
   <!-- صف الرسوم الرئيسي: منحنى السنين + الحالات -->
   <div class="dash-grid">
     <div class="dash-panel">
-      <h3>📈 الطلبات المصروفة سنوياً</h3>
+      <h3>📈 منحنى الطلبات عبر الزمن</h3>
       <div id="dashYearChart"></div>
     </div>
     <div class="dash-panel">
@@ -4882,9 +4882,11 @@ function exportMyReportCSV(){
 }
 
 /* ===== منحنى الزمن (سنوي/شهري) ===== */
-function renderTimeChart(){
-  const mode=document.getElementById("timeChartMode").value||"year";
-  const el=document.getElementById("timeChart");
+/* نفس المنحنى يُرسم في التقارير وفي شاشة العرض (elId/mode/gid اختيارية) */
+function renderTimeChart(elId,mode,gid){
+  mode=mode||document.getElementById("timeChartMode").value||"year";
+  gid=gid||"areaGrad";
+  const el=document.getElementById(elId||"timeChart"); if(!el) return;
   if(!STATE.requests.length){
     el.innerHTML=`<div class="empty"><div class="ei">📈</div><p>لا توجد بيانات</p></div>`;
     return;
@@ -4934,13 +4936,13 @@ function renderTimeChart(){
     <div style="overflow-x:auto">
       <svg viewBox="0 0 ${w} ${h}" style="width:100%;min-width:${w}px;height:280px;display:block">
         <defs>
-          <linearGradient id="areaGrad" x1="0" x2="0" y1="0" y2="1">
+          <linearGradient id="${gid}" x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stop-color="var(--primary)" stop-opacity=".35"/>
             <stop offset="100%" stop-color="var(--primary)" stop-opacity="0"/>
           </linearGradient>
         </defs>
         ${yLines}
-        <path d="${areaPath}" fill="url(#areaGrad)"/>
+        <path d="${areaPath}" fill="url(#${gid})"/>
         <path d="${linePath}" fill="none" stroke="var(--primary)" stroke-width="3" stroke-linejoin="round"/>
         <path d="${dPath}" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-dasharray="5,4" stroke-linejoin="round" opacity=".85"/>
         ${points.map((p,i)=>{
@@ -5224,7 +5226,8 @@ function renderDashboard(){
   // نمو المبالغ سنوياً (جديد — بدل أعلى الطلبات قيمةً)
   renderDashGrowth(all);
   // منحنى السنوات
-  renderDashYearChart(all);
+  // منحنى الطلبات عبر الزمن (كل الطلبات + المصروفة) — نفس منحنى صفحة التقارير
+  renderTimeChart("dashYearChart","year","dashAreaGrad");
   if(STATE.lang==="en") setTimeout(applyTranslation,0);
 }
 
@@ -5429,7 +5432,7 @@ function supportKey(r){ return reqEntity(r)||"غير محدد"; }
 function dashDrill(type,encKey){
   const key=decodeURIComponent(encKey);
   const onDash=document.getElementById("dashboardScreen").classList.contains("show");
-  const all=(onDash&&type!=="status")?dashDone(STATE.requests):(STATE.requests||[]);
+  const all=(onDash&&type!=="status"&&type!=="period")?dashDone(STATE.requests):(STATE.requests||[]);
   let list=[], title=key;
   if(type==="service"){ list=all.filter(r=>(r.serviceName||"")===key); title="الخدمة: "+key; }
   else if(type==="entity"){ list=all.filter(r=>!isClosed(r)&&supportKey(r)===key); title="الجهة الداعمة: "+key; }
