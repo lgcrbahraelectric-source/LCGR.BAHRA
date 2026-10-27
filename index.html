@@ -136,7 +136,7 @@
 }
 *{margin:0;padding:0;box-sizing:border-box}
 body{
-  font-family:'Segoe UI',Tahoma,'Helvetica Neue',Arial,sans-serif;
+  font-family:'Sakkal Majalla','Traditional Arabic','Segoe UI',Tahoma,'Helvetica Neue',Arial,sans-serif;
   background:var(--grad-bg);
   background-attachment:fixed;
   color:var(--text);
@@ -1641,7 +1641,7 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
     <div class="sd-section">
       <div class="sd-label">✍️ نمط الخط</div>
       <div class="seg-group" id="fontGroup">
-        <button class="seg-btn active" data-font="default" onclick="setUIFont('default')">افتراضي</button>
+        <button class="seg-btn active" data-font="default" onclick="setUIFont('default')">سكّال مجلّة</button>
         <button class="seg-btn" data-font="cairo" onclick="setUIFont('cairo')">كايرو</button>
         <button class="seg-btn" data-font="tajawal" onclick="setUIFont('tajawal')">طجوال</button>
       </div>
@@ -2197,6 +2197,8 @@ function init(){
   document.getElementById("hdrSaudi").src=SAUDI_LOGO;
   document.getElementById("heroLogo").src=LOGO;
   document.getElementById("heroSaudi").src=SAUDI_LOGO;
+  // تنظيف: حذف أي كلمة مرور محفوظة من إصدارات سابقة
+  delLS("ed_authpass");
   // الثيم المحفوظ
   const savedTheme=getLS("ed_theme")||"light";
   applyTheme(savedTheme);
@@ -2205,10 +2207,10 @@ function init(){
   const sp=document.getElementById("splash");
   if(sp) sp.style.display="none";
   // جلسة محفوظة → دخول مباشر، وإلا صفحة تسجيل الدخول
+  loadRequests();
   const sess=getLS("ed_session");
   if(sess){ try{const s=JSON.parse(sess); STATE.user=s.user; STATE.role=s.role; STATE.selectedRole=s.role; enterApp();}catch(e){showLogin();} }
   else showLogin();
-  loadRequests();
 }
 
 /* تخزين بسيط في الذاكرة (بديل localStorage للبيئة) */
@@ -2252,7 +2254,7 @@ function doLogin(){
       STATE._authUser=u; STATE._authPass=p;
       STATE.loginUsername=u;   // اسم الدخول الحقيقي (للعمليات الحساسة)
       setLS("ed_authuser", u);
-      setLS("ed_authpass", p);   // نحفظها لتفادي إعادة السؤال عند العمليات الحساسة
+      delLS("ed_authpass");     // أمان: كلمة المرور لا تُحفظ في المتصفح إطلاقاً (تبقى في الذاكرة فقط)
       try{shapesReact("success");}catch(e){}
       setTimeout(()=>{ loginSuccess(res.user.name||u, res.user.role||"user"); },700);
     } else {
@@ -2308,8 +2310,10 @@ function hideUserMenu(){
 }
 function logout(){
   hideUserMenu();
-  delLS("ed_session");
-  STATE.user=null; STATE.requests=STATE.requests; // إبقاء البيانات
+  delLS("ed_session"); delLS("ed_authuser"); delLS("ed_authpass"); delLS("ed_requests"); STATE.requests=[];
+  STATE._authUser=null; STATE._authPass=null; STATE.loginUsername=null;
+  if(_dashTimer){ try{closeDashboard();}catch(e){} }
+  STATE.user=null;
   document.getElementById("topbar").style.display="none";
   { const gr=document.getElementById("govRibbon"); if(gr) gr.style.display="none"; }
   document.getElementById("shell").style.display="none";
@@ -2339,14 +2343,7 @@ function enterApp(){
   renderServices(); renderHome(); nav("home");
   // جلب البيانات من Google Sheet
   if(!SHEET_API.includes("PUT_YOUR")){
-    jsonp("list",{},(res)=>{
-      if(res&&res.ok&&res.data){
-        STATE.requests=res.data; coerceStatuses();
-        renderHomeKpis();
-        saveRequests();
-        if(typeof updatePendingBadge==="function") updatePendingBadge();
-      }
-    });
+    fetchFromSheet();
   }
   if(typeof updatePendingBadge==="function") updatePendingBadge();
 }
@@ -2424,16 +2421,18 @@ function buildThemeGrid(){
 }
 
 // حجم العرض
+/* Sakkal Majalla حروفه أصغر بصرياً من باقي الخطوط → نكبّر الحجم الأساسي قليلاً معه فقط */
+function fontBoost(){ return (STATE.uiFont||"default")==="default"?1.12:1; }
 function setUISize(size){
   const scale={sm:.92,md:1,lg:1.1}[size]||1;
-  document.documentElement.style.fontSize=(16*scale)+"px";
+  document.documentElement.style.fontSize=(16*scale*fontBoost())+"px";
   STATE.uiSize=size; setLS("ed_ui_size",size);
   document.querySelectorAll("#sizeGroup .seg-btn").forEach(b=>b.classList.toggle("active",b.dataset.size===size));
 }
 
 // نمط الخط
 const FONTS={
-  default:'"Segoe UI",Tahoma,system-ui,-apple-system,sans-serif',
+  default:'"Sakkal Majalla","Traditional Arabic","Segoe UI",Tahoma,system-ui,-apple-system,sans-serif',
   cairo:'"Cairo","Segoe UI",sans-serif',
   tajawal:'"Tajawal","Segoe UI",sans-serif'
 };
@@ -2448,6 +2447,7 @@ function setUIFont(font){
   }
   document.body.style.fontFamily=FONTS[font]||FONTS.default;
   STATE.uiFont=font; setLS("ed_ui_font",font);
+  setUISize(STATE.uiSize||"md");
   document.querySelectorAll("#fontGroup .seg-btn").forEach(b=>b.classList.toggle("active",b.dataset.font===font));
 }
 
@@ -2475,7 +2475,7 @@ function resetSettings(){
 // تطبيق الإعدادات المحفوظة عند التحميل
 function loadSavedSettings(){
   const c=getLS("ed_theme_color"); if(c)applyThemeColor(c); else buildThemeGrid();
-  const s=getLS("ed_ui_size"); if(s)setUISize(s);
+  const s=getLS("ed_ui_size"); setUISize(s||"md");
   const f=getLS("ed_ui_font"); if(f)setUIFont(f);
 }
 
@@ -2612,7 +2612,7 @@ const I18N = {
   "✍️ نمط الخط":"✍️ Font Style",
   "🌓 الوضع":"🌓 Mode",
   "صغير":"Small","عادي":"Normal","كبير":"Large",
-  "افتراضي":"Default","كايرو":"Cairo","طجوال":"Tajawal",
+  "افتراضي":"Default","سكّال مجلّة":"Sakkal Majalla","كايرو":"Cairo","طجوال":"Tajawal",
   "☀️ نهاري":"☀️ Light","🌙 ليلي":"🌙 Dark",
   "↻ استعادة الافتراضي":"↻ Reset to Default",
   "الهوية المعتمدة":"Official Brand","الأزرق العميق":"Deep Sea",
@@ -2967,7 +2967,7 @@ function onEntityChange(){
 }
 function openForm(svcId){
   const s=SERVICES.find(x=>x.id===svcId); if(!s)return;
-  STATE.editingId=svcId; STATE.currentFiles={};
+  STATE.editingId=svcId; STATE.currentFiles={}; STATE._editingReqId=null; STATE._pendingReads=0;
   document.getElementById("formTitle").textContent=s.name;
   document.getElementById("formDesc").textContent=s.desc;
   // ترتيب الحقول: الحقول القصيرة تتجمّع في صف (حتى 3)، والطويلة (نص/ملف/اختيار متعدد) كل واحد بصف
@@ -3165,13 +3165,19 @@ function editExceptional(reqId){
     }
   },50);
 }
+const MAX_FILE_MB=10;   // حد Cloudinary المجاني للملف الواحد
+function fileTooBig(f){ if(f.size>MAX_FILE_MB*1024*1024){ toast("الملف أكبر من "+MAX_FILE_MB+" ميجا: "+f.name,"err"); return true; } return false; }
 function onFile(k){
   const inp=document.getElementById("fld_"+k);
   if(inp.files&&inp.files[0]){
     const f=inp.files[0];
-    document.getElementById("fn_"+k).textContent="✓ "+f.name+" ("+(f.size/1024).toFixed(0)+" KB)";
+    if(fileTooBig(f)){ inp.value=""; return; }
+    document.getElementById("fn_"+k).textContent="⏳ "+f.name;
+    STATE._pendingReads=(STATE._pendingReads||0)+1;
     const r=new FileReader();
-    r.onload=()=>{ if(!STATE.currentFiles)STATE.currentFiles={}; STATE.currentFiles[k]={name:f.name,type:f.type,data:r.result.split(",")[1]}; };
+    r.onload=()=>{ if(!STATE.currentFiles)STATE.currentFiles={}; STATE.currentFiles[k]={name:f.name,type:f.type,data:r.result.split(",")[1]};
+      STATE._pendingReads--; document.getElementById("fn_"+k).textContent="✓ "+f.name+" ("+(f.size/1024).toFixed(0)+" KB)"; };
+    r.onerror=()=>{ STATE._pendingReads--; toast("تعذّرت قراءة الملف: "+f.name,"err"); };
     r.readAsDataURL(f);
   }
 }
@@ -3204,6 +3210,8 @@ function nextSeq(compCode,year){
 }
 function submitForm(){
   const s=SERVICES.find(x=>x.id===STATE.editingId); if(!s)return;
+  if(STATE._submitting){ toast("⏳ جاري إرسال الطلب السابق...","err"); return; }
+  if(STATE._pendingReads>0){ toast("⏳ انتظر اكتمال تحميل المرفقات","err"); return; }
   const data={}; let ok=true; let firstBad=null;
   for(const f of s.fields){
     if(f.t==="file")continue;
@@ -3312,7 +3320,9 @@ function submitForm(){
   if(fileList.length){
     closeForm();
     toast("⏳ جاري رفع المرفقات...","ok");
+    STATE._submitting=true;
     uploadAttachments(fileList, internalRef, (links)=>{
+      STATE._submitting=false;
       req.fileLinks=links;
       req.fields._fileLinks=links;
       STATE.requests.unshift(req); saveRequests();
@@ -3472,16 +3482,15 @@ function renderMyRequests(){
   tbody.innerHTML=rows.map(r=>{
     const st=STATUS_MAP[r.status]||STATUS_MAP.submitted;
     const canComplete=((r.status==="preliminary"||r.status==="returned")&&r.applicant===STATE.user);
-    const completeBtn=canComplete?` <button class="act-btn approve" onclick="openCompleteModal('${r.id}')">${r.status==="returned"?"↩️ استكمال النواقص":"📤 استكمال"}</button>`:"";
-    const isExc=(r.serviceId==="exceptional"||/استثنائي|التحول الرقمي/.test(r.serviceName||""));
-    const entity=(isExc&&r.entityName)?r.entityName:(r.supportType||"—");
-    return `<tr class="clickable-row" onclick="viewDetail('${r.id}')">
-      <td><b>${r.refNo}</b>${r.ministryRef?`<br><span style="font-size:.74rem;color:var(--primary)">🏛️ الصادرات: ${r.ministryRef}</span>`:""}</td>
-      <td>${r.serviceName}</td>
-      <td><span style="font-size:.85rem">${entity}</span></td>
+    const completeBtn=canComplete?` <button class="act-btn approve" onclick="openCompleteModal(${jsArg(r.id)})">${r.status==="returned"?"↩️ استكمال النواقص":"📤 استكمال"}</button>`:"";
+    const entity=reqEntity(r)||"—";
+    return `<tr class="clickable-row" onclick="viewDetail(${jsArg(r.id)})">
+      <td><b>${esc(r.refNo)}</b>${r.ministryRef?`<br><span style="font-size:.74rem;color:var(--primary)">🏛️ الصادرات: ${esc(r.ministryRef)}</span>`:""}</td>
+      <td>${esc(r.serviceName)}</td>
+      <td><span style="font-size:.85rem">${esc(entity)}</span></td>
       <td><span class="badge ${st.badge}">${st.label}</span></td>
-      <td>${fmtDate(r.date)}</td>
-      <td onclick="event.stopPropagation()"><button class="act-btn" onclick="viewDetail('${r.id}')">عرض</button>${completeBtn} <button class="act-btn" onclick="printRequestReport('${r.id}')">📄 تقرير</button></td>
+      <td>${esc(fmtDate(r.date))}</td>
+      <td onclick="event.stopPropagation()"><button class="act-btn" onclick="viewDetail(${jsArg(r.id)})">عرض</button>${completeBtn} <button class="act-btn" onclick="printRequestReport(${jsArg(r.id)})">📄 تقرير</button></td>
     </tr>`;
   }).join("");
 }
@@ -3491,11 +3500,11 @@ function renderMyRequests(){
    ============================================================ */
 function renderAdminKpis(){
   const all=STATE.requests;
-  const pending=all.filter(r=>r.status==="submitted"||r.status==="preliminary"||r.status==="review").length;
+  const pending=all.filter(r=>r.status==="submitted"||r.status==="preliminary"||r.status==="review"||r.status==="returned").length;
   const approved=all.filter(r=>r.status==="disbursed").length;
   const rejected=all.filter(r=>r.status==="rejected").length;
   const manual=all.filter(r=>r.status==="manual").length;
-  const total=all.reduce((s,r)=>s+(parseFloat(r.disbursed)||0),0);
+  const total=all.reduce((s,r)=>s+reqVal(r),0);
   document.getElementById("adminKpis").innerHTML=`
     ${kpiHTML("📋","إجمالي الطلبات",all.length,"b-green")}
     ${kpiHTML("⏳","قيد المعالجة",pending,"b-gold")}
@@ -3561,28 +3570,28 @@ function renderAdminTable(){
   tbody.innerHTML=rows.map(r=>{
     const st=STATUS_MAP[r.status]||STATUS_MAP.submitted;
     const nextStage=getNextStage(r.status);
-    let actionBtns=`<button class="act-btn" onclick="viewDetail('${r.id}')">عرض</button>`;
+    let actionBtns=`<button class="act-btn" onclick="viewDetail(${jsArg(r.id)})">عرض</button>`;
     if(nextStage){
-      actionBtns+=`<button class="act-btn approve" onclick="advanceStatus('${r.id}')" title="${STATUS_MAP[nextStage].label}">▶ ${nextStageShort(nextStage)}</button>`;
+      actionBtns+=`<button class="act-btn approve" onclick="advanceStatus(${jsArg(r.id)})" title="${STATUS_MAP[nextStage].label}">▶ ${nextStageShort(nextStage)}</button>`;
     }
     if(r.status!=="disbursed"&&!isClosed(r)){
-      actionBtns+=`<button class="act-btn" style="background:#fcefcf;color:#9a7414;border-color:#eacb7a" onclick="rejectRequest('${r.id}')">✋ معالجة يدوية</button>`;
+      actionBtns+=`<button class="act-btn" style="background:#fcefcf;color:#9a7414;border-color:#eacb7a" onclick="rejectRequest(${jsArg(r.id)})">✋ معالجة يدوية</button>`;
     }
     if(!isClosed(r)){
-      actionBtns+=`<button class="act-btn" title="تعديل المبالغ" onclick="openAmountsModal('${r.id}')">💵</button>`;
+      actionBtns+=`<button class="act-btn" title="تعديل المبالغ" onclick="openAmountsModal(${jsArg(r.id)})">💵</button>`;
     }
-    actionBtns+=`<button class="act-btn" onclick="printRequestReport('${r.id}')">📄</button>`;
+    actionBtns+=`<button class="act-btn" onclick="printRequestReport(${jsArg(r.id)})">📄</button>`;
     const entity2=reqEntity(r)||"—";
     const company2=(r.fields&&r.fields.company)||r.company||"—";
-    return `<tr class="clickable-row" onclick="viewDetail('${r.id}')">
-      <td><b>${r.refNo}</b>${r.ministryRef?`<br><span style="font-size:.74rem;color:var(--primary)">🏛️ الصادرات: ${r.ministryRef}</span>`:""}</td>
-      <td>${r.applicant}</td>
-      <td><span style="font-size:.85rem">${company2}</span></td>
-      <td>${r.serviceName}</td>
-      <td><span style="font-size:.85rem">${entity2}</span></td>
+    return `<tr class="clickable-row" onclick="viewDetail(${jsArg(r.id)})">
+      <td><b>${esc(r.refNo)}</b>${r.ministryRef?`<br><span style="font-size:.74rem;color:var(--primary)">🏛️ الصادرات: ${esc(r.ministryRef)}</span>`:""}</td>
+      <td>${esc(r.applicant)}</td>
+      <td><span style="font-size:.85rem">${esc(company2)}</span></td>
+      <td>${esc(r.serviceName)}</td>
+      <td><span style="font-size:.85rem">${esc(entity2)}</span></td>
       <td>${fmtMoney(r.amount)}</td>
       <td><span class="badge ${st.badge}">${st.label}</span></td>
-      <td><span style="font-size:.82rem;color:var(--text-soft)">${r.reviewer||"—"}</span></td>
+      <td><span style="font-size:.82rem;color:var(--text-soft)">${esc(r.reviewer||"—")}</span></td>
       <td onclick="event.stopPropagation()">${actionBtns}</td>
     </tr>`;
   }).join("");
@@ -3896,6 +3905,7 @@ function onCompleteDocFile(docKey){
   const inp=document.getElementById("cdoc_"+docKey);
   if(inp.files&&inp.files[0]){
     const f=inp.files[0];
+    if(fileTooBig(f)){ inp.value=""; return; }
     document.getElementById("cdocName_"+docKey).textContent="✓ "+f.name+" ("+(f.size/1024).toFixed(0)+" KB)";
     const r=new FileReader();
     r.onload=()=>{ _completeFiles[docKey]={name:f.name,type:f.type,data:r.result.split(",")[1]}; };
@@ -3904,6 +3914,7 @@ function onCompleteDocFile(docKey){
 }
 function submitCompletion(){
   if(!_completeId)return;
+  if(STATE._submitting){ toast("⏳ جاري رفع الاستكمال السابق...","err"); return; }
   const r=STATE.requests.find(x=>x.id===_completeId); if(!r)return;
   const comment=document.getElementById("completeComment").value.trim();
   // التحقق: كل المستندات الخمسة إجبارية
@@ -3921,7 +3932,9 @@ function submitCompletion(){
   const docsList=COMPLETION_DOCS.map(d=>({key:d.k,label:d.l,file:_completeFiles[d.k]}));
   closeCompleteModal();
   toast("⏳ جاري رفع المستندات...","ok");
+  STATE._submitting=true;
   uploadCompletionDocs(docsList, r.refNo, (links)=>{
+    STATE._submitting=false;
     r.completion={
       comment:comment,
       docs:links,                              // [{label,name,url}]
@@ -4014,18 +4027,18 @@ function viewDetail(id){
   let html=`<div style="display:grid;gap:14px">`;
   // نوع الخدمة
   html+=`<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:8px">
-    <span style="color:var(--text-soft)">نوع الخدمة</span><b style="color:var(--primary)">${r.serviceName||"-"}</b></div>`;
+    <span style="color:var(--text-soft)">نوع الخدمة</span><b style="color:var(--primary)">${esc(r.serviceName||"-")}</b></div>`;
   // رقم الطلب في الصادرات (إن وُجد)
   if(r.ministryRef){
     html+=`<div style="background:linear-gradient(135deg,var(--primary-light),transparent);padding:12px 14px;border-radius:12px;border-right:4px solid var(--primary);display:flex;justify-content:space-between;align-items:center">
-      <span style="color:var(--text-soft)">رقم الطلب في الصادرات</span><b style="color:var(--primary);font-size:1.05rem">${r.ministryRef}</b></div>`;
+      <span style="color:var(--text-soft)">رقم الطلب في الصادرات</span><b style="color:var(--primary);font-size:1.05rem">${esc(r.ministryRef)}</b></div>`;
   }
   if(s){
     for(const f of s.fields){
       if(f.t==="file")continue;
-      const v=r.fields[f.k]||"-";
+      const v=(r.fields||{})[f.k]||"-";
       html+=`<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:8px">
-        <span style="color:var(--text-soft)">${f.l}</span><b>${v||"-"}</b></div>`;
+        <span style="color:var(--text-soft)">${f.l}</span><b>${esc(v||"-")}</b></div>`;
     }
   }
   // روابط المرفقات (Google Drive)
@@ -4033,12 +4046,12 @@ function viewDetail(id){
   if(fileLinks&&fileLinks.length){
     html+=`<div style="border-bottom:1px solid var(--border);padding-bottom:8px">
       <div style="color:var(--text-soft);margin-bottom:6px">المرفقات</div>
-      ${fileLinks.map(f=>f.url?`<a href="${fixFileUrl(f.url)}" onclick="return openAttachment(event,'${encodeURIComponent(f.url)}')" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;background:var(--primary-light);color:var(--primary);padding:6px 12px;border-radius:8px;text-decoration:none;margin:3px;font-size:.88rem">📎 ${f.name} ↗</a>`:`<span style="display:inline-flex;align-items:center;gap:6px;background:var(--bg2);color:var(--text-soft);padding:6px 12px;border-radius:8px;margin:3px;font-size:.88rem">📎 ${f.name} (لم يُرفع بعد)</span>`).join("")}
+      ${fileLinks.map(f=>f.url?`<a href="${safeUrl(fixFileUrl(f.url))}" onclick="return openAttachment(event,'${encodeURIComponent(f.url)}')" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;background:var(--primary-light);color:var(--primary);padding:6px 12px;border-radius:8px;text-decoration:none;margin:3px;font-size:.88rem">📎 ${esc(f.name)} ↗</a>`:`<span style="display:inline-flex;align-items:center;gap:6px;background:var(--bg2);color:var(--text-soft);padding:6px 12px;border-radius:8px;margin:3px;font-size:.88rem">📎 ${esc(f.name)} (لم يُرفع بعد)</span>`).join("")}
     </div>`;
   } else if(r.fileName){
-    html+=`<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:8px"><span style="color:var(--text-soft)">المرفقات</span><b>📎 ${r.fileName}</b></div>`;
+    html+=`<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:8px"><span style="color:var(--text-soft)">المرفقات</span><b>📎 ${esc(r.fileName)}</b></div>`;
   }
-  if(r.currency) html+=`<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:8px"><span style="color:var(--text-soft)">العملة</span><b>${r.currency}</b></div>`;
+  if(r.currency) html+=`<div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:8px"><span style="color:var(--text-soft)">العملة</span><b>${esc(r.currency)}</b></div>`;
   // رمز العملة المختصر من عملة الطلب (يدعم SAR/USD/EUR/AED/EGP/GBP)
   const curLabel=(()=>{
     const c=(r.currency||"ريال سعودي").toString();
@@ -4054,7 +4067,7 @@ function viewDetail(id){
   })();
   const money=n=>(parseFloat(n)||0).toLocaleString("en-US")+" "+curLabel;
   html+=`<div style="background:var(--bg);padding:12px 14px;border-radius:12px;margin-top:4px;display:grid;gap:8px">
-    ${(r.country&&r.country!=="-")?`<div style="display:flex;justify-content:space-between"><span style="color:var(--text-soft)">الدولة</span><b>${r.country}</b></div>`:""}
+    ${(r.country&&r.country!=="-")?`<div style="display:flex;justify-content:space-between"><span style="color:var(--text-soft)">الدولة</span><b>${esc(r.country)}</b></div>`:""}
     <div style="display:flex;justify-content:space-between"><span style="color:var(--text-soft)">عرض السعر</span><b>${money(r.priceOffer||r.amount)}</b></div>
     ${(parseFloat(r.claimAmount)>0)?`<div style="display:flex;justify-content:space-between"><span style="color:var(--text-soft)">مبلغ المطالبة</span><b>${money(r.claimAmount)}</b></div>`:""}
     <div style="display:flex;justify-content:space-between"><span style="color:var(--text-soft)">مبلغ الصرف</span><b style="color:var(--green)">${money(r.disbursed)}</b></div>
@@ -4077,18 +4090,18 @@ function viewDetail(id){
   })();
   const st=STATUS_MAP[r.status]||STATUS_MAP.submitted;
   html+=`<div style="display:flex;justify-content:space-between;padding-top:6px"><span style="color:var(--text-soft)">الحالة</span><span class="badge ${st.badge}">${st.label}</span></div>`;
-  if(r.note)html+=`<div style="background:var(--bg);padding:12px;border-radius:10px;margin-top:6px"><b>ملاحظة المراجع:</b> ${r.note}</div>`;
+  if(r.note)html+=`<div style="background:var(--bg);padding:12px;border-radius:10px;margin-top:6px"><b>ملاحظة المراجع:</b> ${esc(r.note)}</div>`;
   if(r.completion){
     const docs=r.completion.docs||[];
     html+=`<div style="background:var(--primary-light);padding:14px;border-radius:12px;margin-top:10px;border-right:4px solid var(--primary)">
-      <div style="font-weight:800;color:var(--primary);margin-bottom:8px">📤 مستندات الاستكمال (بتاريخ ${r.completion.date})</div>
-      ${r.completion.comment?`<div style="margin-bottom:10px"><b>التعليق:</b> ${r.completion.comment}</div>`:""}
+      <div style="font-weight:800;color:var(--primary);margin-bottom:8px">📤 مستندات الاستكمال (بتاريخ ${esc(r.completion.date)})</div>
+      ${r.completion.comment?`<div style="margin-bottom:10px"><b>التعليق:</b> ${esc(r.completion.comment)}</div>`:""}
       ${docs.length?docs.map(d=>`
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px dashed var(--border)">
-          <span style="font-size:.85rem;color:var(--text-soft)">${d.label||d.name}</span>
-          ${d.url?`<a href="${d.url}" target="_blank" style="background:var(--primary);color:#fff;padding:4px 12px;border-radius:7px;text-decoration:none;font-size:.8rem;white-space:nowrap">📎 عرض ↗</a>`:`<span style="font-size:.78rem;color:var(--text-soft)">📎 ${d.name}</span>`}
+          <span style="font-size:.85rem;color:var(--text-soft)">${esc(d.label||d.name)}</span>
+          ${d.url?`<a href="${safeUrl(d.url)}" target="_blank" rel="noopener" style="background:var(--primary);color:#fff;padding:4px 12px;border-radius:7px;text-decoration:none;font-size:.8rem;white-space:nowrap">📎 عرض ↗</a>`:`<span style="font-size:.78rem;color:var(--text-soft)">📎 ${esc(d.name)}</span>`}
         </div>`).join(""):
-        (r.completion.fileName?`<div><b>المرفق:</b> 📎 ${r.completion.fileName}</div>`:"")}
+        (r.completion.fileName?`<div><b>المرفق:</b> 📎 ${esc(r.completion.fileName)}</div>`:"")}
     </div>`;
   }
   html+=`</div>`;
@@ -4098,7 +4111,7 @@ function viewDetail(id){
   if(STATE.role==="admin"||STATE.role==="reviewer"){
     const notes=(r.fields&&Array.isArray(r.fields.notes))?r.fields.notes:[];
     let notesHtml=notes.map(n=>`<div style="background:var(--bg);border-radius:10px;padding:10px 12px;margin-bottom:8px;border-right:3px solid var(--primary)">
-        <div style="font-size:.76rem;color:var(--text-soft);margin-bottom:3px">👤 ${n.by||"-"} · ${n.date||""}</div>
+        <div style="font-size:.76rem;color:var(--text-soft);margin-bottom:3px">👤 ${esc(n.by||"-")} · ${esc(n.date||"")}</div>
         <div style="font-size:.9rem">${(n.text||"").replace(/</g,"&lt;")}</div>
       </div>`).join("");
     html+=`<div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">
@@ -4106,13 +4119,13 @@ function viewDetail(id){
       <div id="reqNotesList">${notesHtml||'<div style="color:var(--text-soft);font-size:.85rem;margin-bottom:8px">لا توجد ملاحظات بعد.</div>'}</div>
       <div style="display:flex;gap:8px;margin-top:6px">
         <textarea id="newReqNote" placeholder="أضف ملاحظة على الطلب..." style="flex:1;min-height:44px;resize:vertical;padding:9px 12px;border:1px solid var(--border);border-radius:10px;font-family:inherit;font-size:.9rem;background:var(--card-solid);color:var(--text)"></textarea>
-        <button class="btn btn-primary" style="align-self:flex-end;white-space:nowrap" onclick="addRequestNote('${r.id}')">💾 إضافة</button>
+        <button class="btn btn-primary" style="align-self:flex-end;white-space:nowrap" onclick="addRequestNote(${jsArg(r.id)})">💾 إضافة</button>
       </div>
     </div>`;
   }
   // زر تقييم AI (للأدمن والمراجع فقط)
   if(STATE.role==="admin"||STATE.role==="reviewer"){
-    html+=`<div style="margin-top:18px"><button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="aiEvaluate('${r.id}')">🤖 احصل على تقييم ذكي للطلب</button></div>`;
+    html+=`<div style="margin-top:18px"><button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="aiEvaluate(${jsArg(r.id)})">🤖 احصل على تقييم ذكي للطلب</button></div>`;
   }
   document.getElementById("detailBody").innerHTML=html;
   // أزرار الأدمن
@@ -4125,29 +4138,29 @@ function viewDetail(id){
     if(!isClosed(r)){
       const editFn = (r.serviceId==="exceptional") ? "editExceptional" : "editRequest";
       // تعديل المبالغ فقط (الأسرع والأكثر استخداماً) ثم تعديل الطلب كاملاً
-      btns+=`<button class="btn btn-primary" onclick="closeDetail();openAmountsModal('${r.id}')">💵 تعديل المبالغ</button>`;
-      btns+=`<button class="btn btn-ghost" onclick="closeDetail();${editFn}('${r.id}')">✏️ تعديل الطلب</button>`;
+      btns+=`<button class="btn btn-primary" onclick="closeDetail();openAmountsModal(${jsArg(r.id)})">💵 تعديل المبالغ</button>`;
+      btns+=`<button class="btn btn-ghost" onclick="closeDetail();${editFn}(${jsArg(r.id)})">✏️ تعديل الطلب</button>`;
     }
     if(next){
-      btns+=`<button class="btn btn-primary" onclick="advanceStatus('${r.id}');closeDetail()">▶ ${STATUS_MAP[next].label}</button>`;
+      btns+=`<button class="btn btn-primary" onclick="advanceStatus(${jsArg(r.id)});closeDetail()">▶ ${STATUS_MAP[next].label}</button>`;
     }
     if(r.status!=="disbursed"&&!isClosed(r)){
-      btns+=`<button class="btn btn-primary" style="background:#9a7414" onclick="closeDetail();rejectRequest('${r.id}')">✋ معالجة يدوية</button>`;
+      btns+=`<button class="btn btn-primary" style="background:#9a7414" onclick="closeDetail();rejectRequest(${jsArg(r.id)})">✋ معالجة يدوية</button>`;
     }
     // إعادة لاستكمال النواقص (في مرحلة تحت الدراسة فقط)
     if(r.status==="review"){
-      btns+=`<button class="btn btn-warn" onclick="closeDetail();returnForCompletion('${r.id}')">↩️ إعادة لاستكمال النواقص</button>`;
+      btns+=`<button class="btn btn-warn" onclick="closeDetail();returnForCompletion(${jsArg(r.id)})">↩️ إعادة لاستكمال النواقص</button>`;
     }
-    btns+=`<button class="btn btn-ghost" onclick="aiEvaluate('${r.id}')">🤖 تقييم ذكي</button>`;
+    btns+=`<button class="btn btn-ghost" onclick="aiEvaluate(${jsArg(r.id)})">🤖 تقييم ذكي</button>`;
     // تعديل/إضافة رقم الطلب في الصادرات للطلبات التي تجاوزت مرحلة الإرسال
     if(r.status!=="submitted"&&!isClosed(r)){
-      btns+=`<button class="btn btn-ghost" onclick="closeDetail();showMinistryModal('${r.id}')">🏛️ ${r.ministryRef?"تعديل":"إضافة"} رقم الصادرات</button>`;
+      btns+=`<button class="btn btn-ghost" onclick="closeDetail();showMinistryModal(${jsArg(r.id)})">🏛️ ${r.ministryRef?"تعديل":"إضافة"} رقم الصادرات</button>`;
     }
-    btns+=`<button class="btn btn-ghost" onclick="printRequestReport('${r.id}')">📄 تقرير</button>`;
+    btns+=`<button class="btn btn-ghost" onclick="printRequestReport(${jsArg(r.id)})">📄 تقرير</button>`;
     btns+=`<button class="btn btn-ghost" onclick="closeDetail()">إغلاق</button>`;
     foot.innerHTML=btns;
   } else {
-    foot.innerHTML=`<button class="btn btn-primary" onclick="printRequestReport('${r.id}')">📄 تقرير</button><button class="btn btn-ghost" onclick="closeDetail()">إغلاق</button>`;
+    foot.innerHTML=`<button class="btn btn-primary" onclick="printRequestReport(${jsArg(r.id)})">📄 تقرير</button><button class="btn btn-ghost" onclick="closeDetail()">إغلاق</button>`;
   }
   document.getElementById("detailOverlay").classList.add("show");
 }
@@ -4230,12 +4243,12 @@ function renderUsers(){
           <td style="padding:11px;font-size:.86rem;color:var(--text-soft)">${esc(u.email)||"-"}</td>
           <td style="padding:11px"><span class="badge ${roleBadge[u.role]||"blue"}">${roleLabels[u.role]||u.role}</span></td>
           <td style="padding:11px;text-align:center;white-space:nowrap">
-            <button class="act-btn" onclick="openUserModal('${esc(u.username)}')" style="margin-left:6px">✏️ تعديل</button>
-            <button class="act-btn reject" onclick="deleteUserConfirm('${esc(u.username)}')">🗑️ حذف</button>
+            <button class="act-btn" onclick="openUserModal(${jsArg(u.username)})" style="margin-left:6px">✏️ تعديل</button>
+            <button class="act-btn reject" onclick="deleteUserConfirm(${jsArg(u.username)})">🗑️ حذف</button>
           </td>
         </tr>`).join("");
     } else {
-      tbody.innerHTML=`<tr><td colspan="5" style="padding:30px;text-align:center;color:var(--red)">تعذّر تحميل المستخدمين${res&&res.error?": "+res.error:""}</td></tr>`;
+      tbody.innerHTML=`<tr><td colspan="5" style="padding:30px;text-align:center;color:var(--red)">تعذّر تحميل المستخدمين${res&&res.error?": "+esc(res.error):""}</td></tr>`;
     }
   });
 }
@@ -4328,25 +4341,20 @@ function deleteUserConfirm(username){
 
 // دالة تهريب HTML بسيطة لمنع الحقن
 function esc(s){
-  return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
+
+// وسيط آمن داخل onclick: يحوّل القيمة لنص JS مهرّب (يمنع كسر السمة أو حقن كود)
+function jsArg(v){ return esc(JSON.stringify(String(v==null?"":v))); }
+// رابط آمن: يسمح فقط بـ http/https (يمنع javascript: وما شابه)
+function safeUrl(u){ const s=String(u||"").trim(); return /^https?:\/\//i.test(s)?esc(s):"#"; }
 
 // التأكد من توفر بيانات المصادقة للعمليات الحساسة (تُطلب مرة بعد تحديث الصفحة)
 function ensureAuth(){
-  // المستخدم مسجّل دخول كـ admin → نمرّر مباشرة بلا سؤال كلمة مرور
-  if(STATE.role==="admin"){
-    STATE._authUser = STATE.loginUsername || getLS("ed_authuser") || STATE.user || "admin";
-    STATE._authPass = STATE._authPass || getLS("ed_authpass") || "__session_admin__";
-    return true;
-  }
-  // غير الأدمن: نستخدم بيانات الجلسة إن وُجدت
+  // كلمة المرور تبقى في الذاكرة فقط لهذه الجلسة؛ بعد تحديث الصفحة تُطلب مرة واحدة
+  // (أُلغي تمرير كلمة مرور وهمية للأدمن — التحقق الحقيقي مسؤولية الخادم)
   if(STATE._authUser && STATE._authPass) return true;
   const savedUser = STATE.loginUsername || getLS("ed_authuser") || "";
-  const savedPass = getLS("ed_authpass") || "";
-  if(savedUser && savedPass){
-    STATE._authUser=savedUser; STATE._authPass=savedPass;
-    return true;
-  }
   const pw=prompt("لتأكيد العملية، أدخل كلمة مرورك:");
   if(!pw){ toast("تم الإلغاء","err"); return false; }
   STATE._authUser=savedUser||STATE.user;
@@ -4424,9 +4432,9 @@ function switchRepTab(tab){
 function renderFinancialTab(){
   const all=STATE.requests;
   const disbursed=all.filter(r=>r.status==="disbursed");
-  const totalAmt=disbursed.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  const totalAmt=disbursed.reduce((s,r)=>s+(reqVal(r)),0);
   const avgAmt=disbursed.length?totalAmt/disbursed.length:0;
-  const maxAmt=disbursed.length?Math.max(...disbursed.map(r=>parseFloat(r.amount)||0)):0;
+  const maxAmt=disbursed.length?Math.max(...disbursed.map(r=>reqVal(r))):0;
 
   // KPIs مالية
   const fk=document.getElementById("finKpis");
@@ -4440,13 +4448,13 @@ function renderFinancialTab(){
   // مخططات مالية
   drawAmtChart("chartAmtService", groupAmt(disbursed,r=>r.serviceName));
   drawAmtChart("chartAmtCompany", groupAmt(disbursed,r=>(r.fields&&r.fields.company)||r.company||"-"));
-  drawAmtChart("chartAmtEntity",  groupAmt(disbursed,r=>(r.fields&&r.fields.supporting_entity)||"غير محدد"));
+  drawAmtChart("chartAmtEntity",  groupAmt(disbursed,r=>reqEntity(r)));
 
   // مخطط شهري آخر 12 شهر
   const monthly={};
   disbursed.forEach(r=>{
     const m=(r.date||"").substring(0,7);
-    if(m){monthly[m]=(monthly[m]||0)+(parseFloat(r.amount)||0);}
+    if(m){monthly[m]=(monthly[m]||0)+(reqVal(r));}
   });
   const keys=Object.keys(monthly).sort().slice(-12);
   const mData={};
@@ -4462,12 +4470,12 @@ function renderFinancialTab(){
         ${["رقم الطلب","الخدمة","الشركة","الدولة","المبلغ","التاريخ"].map(h=>`<th style="padding:10px;text-align:right;border-bottom:1px solid var(--border)">${h}</th>`).join("")}
       </tr></thead>
       <tbody>${disbursed.map(r=>`<tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:9px;font-weight:700;color:var(--primary)">${r.refNo||"-"}</td>
-        <td style="padding:9px">${r.serviceName||"-"}</td>
-        <td style="padding:9px">${(r.fields&&r.fields.company)||r.company||"-"}</td>
-        <td style="padding:9px">${r.country||"-"}</td>
-        <td style="padding:9px;color:var(--green);font-weight:700">${fmtNum(parseFloat(r.amount)||0)} ﷼</td>
-        <td style="padding:9px">${r.date||"-"}</td>
+        <td style="padding:9px;font-weight:700;color:var(--primary)">${esc(r.refNo||"-")}</td>
+        <td style="padding:9px">${esc(r.serviceName||"-")}</td>
+        <td style="padding:9px">${esc((r.fields&&r.fields.company)||r.company||"-")}</td>
+        <td style="padding:9px">${esc(r.country||"-")}</td>
+        <td style="padding:9px;color:var(--green);font-weight:700">${fmtNum(reqVal(r))} ﷼</td>
+        <td style="padding:9px">${esc(r.date||"-")}</td>
       </tr>`).join("")}</tbody>
     </table>`;
   }
@@ -4484,11 +4492,11 @@ function renderPerformanceTab(){
   const approvalRate=total?Math.round(disbursed/total*100):0;
 
   // حساب متوسط وقت المعالجة
-  const processed=all.filter(r=>r.status==="disbursed"&&r.date&&r.endDate);
-  const avgDays=processed.length?Math.round(processed.reduce((s,r)=>{
-    const d1=new Date(r.date),d2=new Date(r.endDate);
-    return s+(isNaN(d1)||isNaN(d2)?0:(d2-d1)/(1000*60*60*24));
-  },0)/processed.length):"-";
+  // متوسط المعالجة: من التقديم إلى الاستكمال (نفس منطق تحليل الأزمنة) — كان يستخدم تاريخ انتهاء الخدمة خطأً
+  const _durs=computeDurations();
+  const avgDays=_durs.length?Math.round(_durs.reduce((s,d)=>s+d.days,0)/_durs.length):"-";
+  const processed=STATE.requests.filter(r=>r.status==="disbursed"&&r.date&&r.completion&&r.completion.date)
+    .map(r=>Object.assign({},r,{endDate:r.completion.date}));
 
   // الطلبات المتأخرة (أكثر من 30 يوم بحالة قيد المعالجة)
   const now=new Date();
@@ -4550,10 +4558,10 @@ function renderPerformanceTab(){
         const d=new Date(r.date||"");
         const days=isNaN(d)?"-":Math.floor((now-d)/(1000*60*60*24));
         return`<tr style="border-bottom:1px solid var(--border)">
-          <td style="padding:9px;font-weight:700;color:var(--primary)">${r.refNo||"-"}</td>
-          <td style="padding:9px">${r.serviceName||"-"}</td>
-          <td style="padding:9px">${(r.fields&&r.fields.company)||r.company||"-"}</td>
-          <td style="padding:9px">${r.date||"-"}</td>
+          <td style="padding:9px;font-weight:700;color:var(--primary)">${esc(r.refNo||"-")}</td>
+          <td style="padding:9px">${esc(r.serviceName||"-")}</td>
+          <td style="padding:9px">${esc((r.fields&&r.fields.company)||r.company||"-")}</td>
+          <td style="padding:9px">${esc(r.date||"-")}</td>
           <td style="padding:9px"><span style="background:#fde8e8;color:var(--red);padding:3px 10px;border-radius:20px;font-weight:700">${days} يوم</span></td>
         </tr>`;
       }).join("")}</tbody>
@@ -4565,7 +4573,7 @@ function renderPerformanceTab(){
 function renderMyReportTab(){
   const myReqs=STATE.requests.filter(r=>r.applicant===STATE.user);
   const disbursed=myReqs.filter(r=>r.status==="disbursed");
-  const totalAmt=disbursed.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  const totalAmt=disbursed.reduce((s,r)=>s+(reqVal(r)),0);
 
   const mk=document.getElementById("myKpis");
   if(mk) mk.innerHTML=[
@@ -4587,15 +4595,14 @@ function renderMyReportTab(){
       </tr></thead>
       <tbody>${myReqs.map(r=>{
         const st=STATUS_MAP[r.status]||STATUS_MAP.submitted;
-        const isExc=(r.serviceId==="exceptional"||/استثنائي|التحول الرقمي/.test(r.serviceName||""));
-        const entity=(isExc&&r.entityName)?r.entityName:(r.supportType||"—");
-        return`<tr class="clickable-row" onclick="viewDetail('${r.id}')" style="border-bottom:1px solid var(--border);cursor:pointer">
-          <td style="padding:9px;font-weight:700;color:var(--primary)">${r.refNo||"-"}</td>
-          <td style="padding:9px">${r.serviceName||"-"}</td>
-          <td style="padding:9px;font-size:.82rem">${entity}</td>
+        const entity=reqEntity(r)||"—";
+        return`<tr class="clickable-row" onclick="viewDetail(${jsArg(r.id)})" style="border-bottom:1px solid var(--border);cursor:pointer">
+          <td style="padding:9px;font-weight:700;color:var(--primary)">${esc(r.refNo||"-")}</td>
+          <td style="padding:9px">${esc(r.serviceName||"-")}</td>
+          <td style="padding:9px;font-size:.82rem">${esc(entity)}</td>
           <td style="padding:9px"><span class="badge ${st.badge}">${st.label}</span></td>
-          <td style="padding:9px">${r.date||"-"}</td>
-          <td style="padding:9px" onclick="event.stopPropagation()"><button class="act-btn" onclick="viewDetail('${r.id}')">عرض</button></td>
+          <td style="padding:9px">${esc(r.date||"-")}</td>
+          <td style="padding:9px" onclick="event.stopPropagation()"><button class="act-btn" onclick="viewDetail(${jsArg(r.id)})">عرض</button></td>
         </tr>`;
       }).join("")}</tbody>
     </table>`;
@@ -4664,7 +4671,7 @@ function renderTimeAnalysis(){
       const pct=durs.length?Math.round(v/durs.length*100):0;
       return`<div style="margin-bottom:12px">
         <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:4px">
-          <span>${k}</span><span style="font-weight:700;color:var(--primary)">${v} طلب (${pct}%)</span>
+          <span>${esc(k)}</span><span style="font-weight:700;color:var(--primary)">${v} طلب (${pct}%)</span>
         </div>
         <div style="background:var(--bg);border-radius:6px;height:10px;overflow:hidden">
           <div style="width:${pct}%;height:100%;background:var(--primary);border-radius:6px"></div>
@@ -4674,12 +4681,12 @@ function renderTimeAnalysis(){
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px">
       <div style="background:var(--green-soft);border-radius:10px;padding:14px">
         <div style="font-weight:700;color:var(--green);font-size:.85rem;margin-bottom:4px">⚡ أسرع طلب</div>
-        <div style="font-size:.82rem">${fastest.ref} — ${fastest.svc}</div>
+        <div style="font-size:.82rem">${esc(fastest.ref)} — ${esc(fastest.svc)}</div>
         <div style="font-size:.78rem;color:var(--text-soft)">${fastest.days} يوم (${fastest.start} ← ${fastest.end})</div>
       </div>
       <div style="background:#fde8e8;border-radius:10px;padding:14px">
         <div style="font-weight:700;color:var(--red);font-size:.85rem;margin-bottom:4px">🐢 أبطأ طلب</div>
-        <div style="font-size:.82rem">${slowest.ref} — ${slowest.svc}</div>
+        <div style="font-size:.82rem">${esc(slowest.ref)} — ${esc(slowest.svc)}</div>
         <div style="font-size:.78rem;color:var(--text-soft)">${slowest.days} يوم (${slowest.start} ← ${slowest.end})</div>
       </div>
     </div>`;
@@ -4695,10 +4702,10 @@ function printReport(type){
   if(type==="financial"){
     title="التقرير المالي";
     const disbursed=all.filter(r=>r.status==="disbursed");
-    const totalAmt=disbursed.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+    const totalAmt=disbursed.reduce((s,r)=>s+(reqVal(r)),0);
     const avgAmt=disbursed.length?Math.round(totalAmt/disbursed.length):0;
-    const maxAmt=disbursed.length?Math.max(...disbursed.map(r=>parseFloat(r.amount)||0)):0;
-    const byEntity=groupAmt(disbursed,r=>(r.fields&&r.fields.supporting_entity)||"غير محدد");
+    const maxAmt=disbursed.length?Math.max(...disbursed.map(r=>reqVal(r))):0;
+    const byEntity=groupAmt(disbursed,r=>reqEntity(r));
     const byService=groupAmt(disbursed,r=>r.serviceName);
     bodyHtml=`
       <div class="kpis">
@@ -4709,13 +4716,13 @@ function printReport(type){
       </div>
       <h2>المبالغ حسب الجهة الداعمة</h2>
       <table><tr><th>الجهة الداعمة</th><th style="text-align:center">المبلغ</th></tr>
-      ${Object.entries(byEntity).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${k}</td><td style="text-align:center"><b>${fmtNum(v)} ﷼</b></td></tr>`).join("")}</table>
+      ${Object.entries(byEntity).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${esc(k)}</td><td style="text-align:center"><b>${fmtNum(v)} ﷼</b></td></tr>`).join("")}</table>
       <h2>المبالغ حسب الخدمة</h2>
       <table><tr><th>الخدمة</th><th style="text-align:center">المبلغ</th></tr>
-      ${Object.entries(byService).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${k}</td><td style="text-align:center"><b>${fmtNum(v)} ﷼</b></td></tr>`).join("")}</table>
+      ${Object.entries(byService).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${esc(k)}</td><td style="text-align:center"><b>${fmtNum(v)} ﷼</b></td></tr>`).join("")}</table>
       <h2>تفاصيل الطلبات المصروفة</h2>
       <table><tr><th>رقم الطلب</th><th>الخدمة</th><th>الشركة</th><th>المبلغ</th><th>التاريخ</th></tr>
-      ${disbursed.map(r=>`<tr><td>${r.refNo||"-"}</td><td>${r.serviceName||"-"}</td><td>${(r.fields&&r.fields.company)||r.company||"-"}</td><td><b>${fmtNum(parseFloat(r.amount)||0)} ﷼</b></td><td>${r.date||"-"}</td></tr>`).join("")}</table>`;
+      ${disbursed.map(r=>`<tr><td>${esc(r.refNo||"-")}</td><td>${esc(r.serviceName||"-")}</td><td>${esc((r.fields&&r.fields.company)||r.company||"-")}</td><td><b>${fmtNum(reqVal(r))} ﷼</b></td><td>${esc(r.date||"-")}</td></tr>`).join("")}</table>`;
   }
   else if(type==="performance"){
     title="تقرير الأداء وأزمنة المعالجة";
@@ -4736,13 +4743,13 @@ function printReport(type){
       </div>
       <h2>تفاصيل أزمنة الطلبات المصروفة</h2>
       <table><tr><th>رقم الطلب</th><th>الخدمة</th><th>تاريخ التقديم</th><th>تاريخ الاستكمال</th><th style="text-align:center">المدة (يوم)</th></tr>
-      ${durs.sort((a,b)=>b.days-a.days).map(d=>`<tr><td>${d.ref}</td><td>${d.svc}</td><td>${d.start}</td><td>${d.end}</td><td style="text-align:center"><b>${d.days}</b></td></tr>`).join("")||`<tr><td colspan="5" style="text-align:center;color:#999">لا توجد بيانات أزمنة</td></tr>`}</table>`;
+      ${durs.sort((a,b)=>b.days-a.days).map(d=>`<tr><td>${esc(d.ref)}</td><td>${esc(d.svc)}</td><td>${d.start}</td><td>${d.end}</td><td style="text-align:center"><b>${d.days}</b></td></tr>`).join("")||`<tr><td colspan="5" style="text-align:center;color:#999">لا توجد بيانات أزمنة</td></tr>`}</table>`;
   }
   else if(type==="myreport"){
     title="تقريري الشخصي";
     const myReqs=all.filter(r=>r.applicant===STATE.user);
     const disbursed=myReqs.filter(r=>r.status==="disbursed");
-    const totalAmt=disbursed.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+    const totalAmt=disbursed.reduce((s,r)=>s+(reqVal(r)),0);
     bodyHtml=`
       <div class="kpis">
         <div class="kpi"><div class="v">${myReqs.length}</div><div class="l">إجمالي طلباتي</div></div>
@@ -4752,13 +4759,13 @@ function printReport(type){
       </div>
       <h2>سجل طلباتي</h2>
       <table><tr><th>رقم الطلب</th><th>الخدمة</th><th>الدولة</th><th>المبلغ</th><th>الحالة</th><th>التاريخ</th></tr>
-      ${myReqs.map(r=>{const st=STATUS_MAP[r.status]||STATUS_MAP.submitted;return`<tr><td>${r.refNo||"-"}</td><td>${r.serviceName||"-"}</td><td>${r.country||"-"}</td><td>${r.amount?fmtNum(parseFloat(r.amount))+" ﷼":"-"}</td><td>${st.label}</td><td>${r.date||"-"}</td></tr>`;}).join("")}</table>`;
+      ${myReqs.map(r=>{const st=STATUS_MAP[r.status]||STATUS_MAP.submitted;return`<tr><td>${esc(r.refNo||"-")}</td><td>${esc(r.serviceName||"-")}</td><td>${esc(r.country||"-")}</td><td>${r.amount?fmtNum(parseFloat(r.amount))+" ﷼":"-"}</td><td>${st.label}</td><td>${esc(r.date||"-")}</td></tr>`;}).join("")}</table>`;
   }
 
-  const win=window.open("","_blank");
-  win.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>${title}</title>
+  const win=window.open("","_blank"); if(!win){ toast("المتصفح منع النافذة المنبثقة — اسمح بها لعرض التقرير","err"); return; }
+  win.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>${esc(title)}</title>
   <style>
-    body{font-family:'Segoe UI',Tahoma,Arial;padding:40px;color:#1c2b25;background:#fff}
+    body{font-family:'Sakkal Majalla','Traditional Arabic','Segoe UI',Tahoma,Arial;font-size:17px;padding:40px;color:#1c2b25;background:#fff}
     .head{display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid ${P};padding-bottom:20px;margin-bottom:24px}
     .logos{display:flex;align-items:center;gap:16px}.logos img{height:50px}.sep{width:1.5px;height:40px;background:#ccc}
     h1{color:${P};font-size:1.6rem;margin:0}
@@ -4775,7 +4782,7 @@ function printReport(type){
   </style></head><body>
   <div class="head">
     <div class="logos"><img src="${LOGO}"><div class="sep"></div><img src="${SAUDI_LOGO}"></div>
-    <div style="text-align:left"><h1>${title}</h1><div style="color:#666;font-size:.9rem;margin-top:4px">منصة خدمات دعم الحوافز — بحرة</div></div>
+    <div style="text-align:left"><h1>${esc(title)}</h1><div style="color:#666;font-size:.9rem;margin-top:4px">منصة خدمات دعم الحوافز — بحرة</div></div>
   </div>
   ${bodyHtml}
   <div class="foot">منصة خدمات دعم الحوافز — بحرة | تم إنشاء التقرير بتاريخ ${now}</div>
@@ -4796,8 +4803,8 @@ function drawAmtChart(id,data,unit="ر.س"){
     const label=unit==="%"?v+"%":unit==="يوم"?v+" يوم":fmtNum(v)+" "+unit;
     return`<div style="margin-bottom:12px">
       <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:4px">
-        <span style="color:var(--text)">${k}</span>
-        <span style="font-weight:700;color:var(--primary)">${label}</span>
+        <span style="color:var(--text)">${esc(k)}</span>
+        <span style="font-weight:700;color:var(--primary)">${esc(label)}</span>
       </div>
       <div style="background:var(--bg);border-radius:6px;height:10px;overflow:hidden">
         <div style="width:${pct}%;height:100%;background:var(--primary);border-radius:6px;transition:width .5s"></div>
@@ -4809,7 +4816,7 @@ function drawAmtChart(id,data,unit="ر.س"){
 /* ══════════ تجميع المبالغ ══════════ */
 function groupAmt(arr,fn){
   const out={};
-  arr.forEach(r=>{const k=fn(r)||"-";out[k]=(out[k]||0)+(parseFloat(r.amount)||0);});
+  arr.forEach(r=>{const k=fn(r)||"-";out[k]=(out[k]||0)+reqVal(r);});
   return out;
 }
 
@@ -4849,7 +4856,7 @@ function exportReportCSV(){
       JSON.stringify(f)
     ];
   });
-  const csv="\uFEFF"+[headers,...rows].map(row=>row.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const csv="\uFEFF"+[headers,...rows].map(row=>row.map(c=>{ let v=String(c==null?"":c); if(typeof c==="string"&&/^[=+\-@\t\r]/.test(v)) v="'"+v; return `"${v.replace(/"/g,'""')}"`; }).join(",")).join("\n");
   const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
   const url=URL.createObjectURL(blob);
   const a=document.createElement("a");
@@ -4864,7 +4871,7 @@ function exportMyReportCSV(){
   if(!myReqs.length){toast("لا توجد طلبات","err");return;}
   const headers=["رقم الطلب","الخدمة","الدولة","المبلغ","الحالة","التاريخ"];
   const rows=myReqs.map(r=>[r.refNo||"",r.serviceName||"",r.country||"",parseFloat(r.amount)||0,(STATUS_MAP[r.status]||STATUS_MAP.submitted).label,r.date||""]);
-  const csv="\uFEFF"+[headers,...rows].map(row=>row.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const csv="\uFEFF"+[headers,...rows].map(row=>row.map(c=>{ let v=String(c==null?"":c); if(typeof c==="string"&&/^[=+\-@\t\r]/.test(v)) v="'"+v; return `"${v.replace(/"/g,'""')}"`; }).join(",")).join("\n");
   const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
   const url=URL.createObjectURL(blob);
   const a=document.createElement("a");
@@ -4943,9 +4950,9 @@ function renderTimeChart(){
             <rect x="${p.x-half}" y="${pad-10}" width="${half*2}" height="${ch+20}" fill="transparent"/>
             <circle cx="${p.x}" cy="${p.y}" r="6" fill="var(--card-solid)" stroke="var(--primary)" stroke-width="3"/>
             <circle cx="${dPoints[i].x}" cy="${dPoints[i].y}" r="4" fill="var(--green)"/>
-            <text x="${p.x}" y="${h-pad+18}" font-size="11" font-weight="700" fill="var(--text)" text-anchor="middle">${p.k}</text>
+            <text x="${p.x}" y="${h-pad+18}" font-size="11" font-weight="700" fill="var(--text)" text-anchor="middle">${esc(p.k)}</text>
             <text x="${p.x}" y="${p.y-12}" font-size="11" font-weight="800" fill="var(--primary)" text-anchor="middle">${p.v}</text>
-            <title>${p.k} — ${p.v} طلب (اضغط للتفاصيل)</title>
+            <title>${esc(p.k)} — ${p.v} طلب (اضغط للتفاصيل)</title>
           </g>`;
         }).join("")}
       </svg>
@@ -4957,7 +4964,7 @@ function renderTimeChart(){
 }
 function renderReportKpis(){
   const all=STATE.requests;
-  const total=all.reduce((s,r)=>s+(parseFloat(r.disbursed)||0),0);
+  const total=all.reduce((s,r)=>s+reqVal(r),0);
   const approved=all.filter(r=>r.status==="disbursed").length;
   const rate=all.length?Math.round(approved/all.length*100):0;
   document.getElementById("reportKpis").innerHTML=`
@@ -4968,7 +4975,7 @@ function renderHomeKpis(){
   const isAdmin=STATE.role==="admin"||STATE.role==="reviewer";
   // الأدمن/المراجع يشوف كل الطلبات، اليوزر يشوف بس طلباته
   const all=isAdmin?STATE.requests:STATE.requests.filter(r=>r.applicant===STATE.user);
-  const pending=all.filter(r=>r.status==="submitted"||r.status==="preliminary"||r.status==="review").length;
+  const pending=all.filter(r=>r.status==="submitted"||r.status==="preliminary"||r.status==="review"||r.status==="returned").length;
   const approved=all.filter(r=>r.status==="disbursed").length;
   const firstLabel=isAdmin?"إجمالي الطلبات":"طلباتي";
   document.getElementById("homeKpis").innerHTML=`
@@ -5017,7 +5024,7 @@ function drawBarChart(elId,data,unit,drillType){
       const click=drillType?` onclick="dashDrill('${drillType}','${dkey(label)}')" class="rep-bar-click" title="اضغط لعرض التفاصيل"`:"";
       return `<div${click}>
         <div style="display:flex;justify-content:space-between;margin-bottom:7px;font-size:.86rem">
-          <span style="font-weight:600">${label}</span><b style="color:var(--primary);font-size:.95rem">${val}</b>
+          <span style="font-weight:600">${esc(label)}</span><b style="color:var(--primary);font-size:.95rem">${val}</b>
         </div>
         <div style="background:var(--bg2);border-radius:10px;height:16px;overflow:hidden;box-shadow:inset 0 2px 4px rgba(13,148,136,.1)">
           <div style="width:${pct}%;height:100%;background:var(--grad-primary);border-radius:10px;transition:width 1s cubic-bezier(.2,.8,.2,1);box-shadow:0 2px 8px rgba(45,212,191,.5), 0 1px 0 rgba(255,255,255,.4) inset"></div>
@@ -5033,7 +5040,7 @@ function kpiHTML(icon,label,val,cls,onClick){
   const clickAttr=onClick?`onclick="${onClick}" style="cursor:pointer" class="kpi-card ${cls} kpi-clickable"`:`class="kpi-card ${cls}"`;
   return `<div ${clickAttr}>
     <div class="ic">${icon}</div>
-    <div class="lbl">${label}</div>
+    <div class="lbl">${esc(label)}</div>
     <div class="val">${val}</div>
     ${onClick?'<div class="kpi-hint">اضغط للتفاصيل ←</div>':''}
   </div>`;
@@ -5054,7 +5061,7 @@ function toast(msg,type){
    ============================================================ */
 function aiFormatText(text){
   // تنسيق بسيط: تحويل **نص** إلى <b>نص</b>
-  return (text||"").replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/\n/g,"<br>");
+  return esc(text||"").replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/\n/g,"<br>");
 }
 
 // ----- 1) تقييم الطلب -----
@@ -5076,7 +5083,7 @@ function appendAiMsg(text,type){
   if(w)w.remove();
   const div=document.createElement("div");
   div.className="ai-msg "+type;
-  div.innerHTML=type==="bot"?aiFormatText(text):text;
+  div.innerHTML=type==="bot"?aiFormatText(text):esc(text);
   body.appendChild(div);
   body.scrollTop=body.scrollHeight;
   return div;
@@ -5095,13 +5102,13 @@ function sendAiChat(){
   }
   // سياق: عدد طلبات المستخدم الحالي
   const myCount=STATE.requests.filter(r=>r.applicant===STATE.user).length;
-  const ctx=`المستخدم الحالي: ${STATE.user} (${STATE.role}). لديه ${myCount} طلبات في المنصة.`;
+  const ctx=`المستخدم الحالي: ${esc(STATE.user)} (${STATE.role}). لديه ${myCount} طلبات في المنصة.`;
   jsonp("ai",{mode:"chat",question:q,context:ctx},(res)=>{
     sendBtn.disabled=false;
     if(res&&res.ok&&res.text){
       loading.innerHTML=aiFormatText(res.text);
     } else {
-      loading.innerHTML=`<span style="color:var(--red)">⚠️ ${(res&&res.error)||"تعذّر الحصول على إجابة"}</span>`;
+      loading.innerHTML=`<span style="color:var(--red)">⚠️ ${esc((res&&res.error)||"تعذّر الحصول على إجابة")}</span>`;
     }
     document.getElementById("aiChatBody").scrollTop=document.getElementById("aiChatBody").scrollHeight;
   });
@@ -5125,10 +5132,13 @@ function openDashboard(){
   _dashClockTimer=setInterval(updateDashClock,1000);
   // مراقبة التغيّرات كل ثانيتين (تحديث تلقائي فوري)
   if(_dashTimer)clearInterval(_dashTimer);
+  let inFlight=false;
   _dashTimer=setInterval(()=>{
-    // أعد جلب الطلبات من الشيت لو مربوط
+    if(document.hidden||inFlight) return;   // لا طلبات والتبويب مخفي أو طلب سابق لم يرجع
     if(!SHEET_API.includes("PUT_YOUR")){
+      inFlight=true;
       jsonp("list",{},(res)=>{
+        inFlight=false;
         if(res&&res.ok&&res.data){
           STATE.requests=res.data; coerceStatuses(); saveRequests();
           renderDashboard();
@@ -5137,7 +5147,7 @@ function openDashboard(){
     } else {
       renderDashboard();
     }
-  },2000);
+  },30000);   // كل 30 ثانية (كان كل ثانيتين ويستنزف حصة Apps Script)
 }
 function closeDashboard(){
   document.getElementById("dashboardScreen").classList.remove("show");
@@ -5179,9 +5189,10 @@ function renderDashboard(){
   const disbAmt=r=>parseFloat(r.disbursed)||0;
   // HRDF/الاستثنائي: مبلغ الصرف، وإن فرغ فعرض السعر (يمنع ظهور صفر)
   const reqAmount=r=>(parseFloat(r.disbursed)||0)||(parseFloat(r.priceOffer)||parseFloat(r.amount)||0);
-  const exportsDisb=sumBy(exportsList,disbAmt);
-  const excDisb=sumBy(excList,reqAmount);
-  const hrdfDisb=sumBy(hrdfList,reqAmount);
+  const exportsDisb=sumBy(exportsList,reqVal);
+  // كل البطاقات = المصروف الفعلي فقط (reqVal) — توحيد مع سياسة المنصة، فمجموع البطاقات الثلاث = الإجمالي
+  const excDisb=sumBy(excList,reqVal);
+  const hrdfDisb=sumBy(hrdfList,reqVal);
 
   // اكتشاف تغيّر العدد للفلاش
   const changed=(_dashLastTotal!==-1 && total!==_dashLastTotal);
@@ -5195,7 +5206,7 @@ function renderDashboard(){
         `${excList.length} طلب استثنائي`,"t3",changed,"exceptional")}
     ${dashKpi(`<img src="${HRDF_ICON}" alt="HRDF" style="height:100%;width:auto;object-fit:contain">`,"إجمالي مبالغ دعم HRDF",dashMoney(hrdfDisb),
         `${hrdfList.length} طلب عبر صندوق الموارد`,"t4 logo-kpi",changed,"hrdf")}
-    ${dashKpi("💰","إجمالي المبالغ",dashMoney(all.reduce((s,r)=>s+(parseFloat(r.disbursed)||0),0)),
+    ${dashKpi("💰","إجمالي المبالغ",dashMoney(sumBy(all,reqVal)),
         `المبلغ المصروف الفعلي`,"t1",changed,"all")}`;
 
   // توزيع الحالات
@@ -5250,11 +5261,11 @@ function renderDashGrowth(all){
     const h=Math.max(6,Math.round(v/max*100));
     let growth="";
     if(prev>0){ const pct=Math.round((v-prev)/prev*100); const up=pct>=0; growth=`<div style="font-size:.62rem;font-weight:700;color:${up?'#1a9e52':'#c0392b'}">${up?'▲':'▼'} ${Math.abs(pct)}%</div>`; }
-    return `<div class="tv-bar-col" title="${k}: ${fmtNum(v)} ر.س" onclick="dashDrill('year','${dkey(k)}')">
+    return `<div class="tv-bar-col" title="${esc(k)}: ${fmtNum(v)} ر.س" onclick="dashDrill('year','${dkey(k)}')">
       <div class="tv-bar-val">${fmtNum(Math.round(v/1000))}k</div>
       ${growth}
       <div class="tv-bar" style="height:${h}%;background:linear-gradient(180deg,${g[0]},${g[1]})"></div>
-      <div class="tv-bar-lbl">${k}</div>
+      <div class="tv-bar-lbl">${esc(k)}</div>
     </div>`;
   }).join("");
   el.innerHTML=`<div class="tv-bars">${bars}</div>`;
@@ -5274,20 +5285,11 @@ function renderDashSupport(all,disb,stype){
   if(!el) return;
   const m={};
   all.filter(r=>!isClosed(r)).forEach(r=>{
-    const f=(r.supportType||"").toString().trim();   // عمود F (نوع الدعم)
-    const j=(r.entityName||"").toString().trim();     // عمود J (اسم المعرض/الجهة)
-    let k;
-    if(/تنمية الصادرات|Saudi Exports|صادرات/i.test(f)){
-      // نوع الدعم صادرات → نأخذه من F كما هو
-      k="هيئة تنمية الصادرات";
-    } else {
-      // الدعم الاستثنائي → نأخذ الجهة من عمود J
-      k=j||f||"غير محدد";
-    }
+    const k=supportKey(r);   // نفس تصنيف reqEntity (الخدمات العشر = هيئة تنمية الصادرات دائماً)
     if(!k || k==="غير محدد") return;
     if(!m[k]) m[k]={count:0,sum:0};
     m[k].count++;
-    m[k].sum+=(parseFloat(r.disbursed)||0)||(parseFloat(r.priceOffer)||parseFloat(r.amount)||0);
+    m[k].sum+=reqVal(r);
   });
   const rows=Object.entries(m).sort((a,b)=>b[1].sum-a[1].sum || b[1].count-a[1].count);
   const totalSum=rows.reduce((s,[,v])=>s+v.sum,0);
@@ -5300,7 +5302,7 @@ function renderDashSupport(all,disb,stype){
     const pct=Math.round(v.sum/maxSum*100);
     const short=name.length>26?name.substring(0,26)+"…":name;
     return `<div class="dash-stat-row" onclick="dashDrill('entity','${dkey(name)}')">
-      <span class="dsr-label" title="${name}">${short} <span style="color:var(--text-soft);font-size:.75rem">(${v.count})</span></span>
+      <span class="dsr-label" title="${esc(name)}">${esc(short)} <span style="color:var(--text-soft);font-size:.75rem">(${v.count})</span></span>
       <div class="dash-bar-track"><div class="dash-bar-fill c${i%7}" style="width:${pct}%"></div></div>
       <span class="dsr-val">${fmtNum(v.sum)}</span>
     </div>`;
@@ -5313,7 +5315,7 @@ function dashKpi(ic,lbl,val,sub,cls,flash,drill){
   const click=drill?` onclick="dashDrill('${drill}','x')"`:"";
   return `<div class="dash-kpi"${click}>
     <div class="dk-ic ${cls}">${ic}</div>
-    <div class="dk-lbl">${lbl}</div>
+    <div class="dk-lbl">${esc(lbl)}</div>
     <div class="dk-val ${flash?'flash':''}">${val}</div>
     <div class="dk-sub">${sub}</div>
   </div>`;
@@ -5407,7 +5409,7 @@ function renderDashList(elId,data,icon,color,drillType){
     const barStyle=grad?`width:${pct}%;background:${grad}`:`width:${pct}%`;
     const click=drillType?` onclick="dashDrill('${drillType}','${dkey(label)}')"`:"";
     return `<div class="dash-stat-row"${click}>
-      <span class="dsr-label" title="${lbl}">${short}</span>
+      <span class="dsr-label" title="${esc(lbl)}">${esc(short)}</span>
       <div class="dash-bar-track"><div class="dash-bar-fill c${i%7}" style="${barStyle}"></div></div>
       <span class="dsr-val">${fmtNum(val)} <span style="color:var(--text-soft);font-weight:500;font-size:.78rem">(${share}%)</span></span>
     </div>`;
@@ -5418,12 +5420,7 @@ function renderDashList(elId,data,icon,color,drillType){
 function dkey(v){ return encodeURIComponent(String(v==null?"":v)).replace(/'/g,"%27"); }
 
 /* مفتاح الجهة الداعمة لطلب (نفس منطق لوحة الجهات) */
-function supportKey(r){
-  const f=(r.supportType||"").toString().trim();
-  const j=(r.entityName||"").toString().trim();
-  if(/تنمية الصادرات|Saudi Exports|صادرات/i.test(f)) return "هيئة تنمية الصادرات";
-  return j||f||"غير محدد";
-}
+function supportKey(r){ return reqEntity(r)||"غير محدد"; }
 
 /* فتح مودال التنقيب: يعرض الطلبات المطابقة للفئة المضغوطة */
 function dashDrill(type,encKey){
@@ -5459,8 +5456,8 @@ function openDashDrill(title, list){
       const v=reqVal(r);
       return `<div class="dd-row">
         <div class="dd-main">
-          <b>${r.refNo||"-"} — ${r.company||"-"}</b>
-          <span>${r.serviceName||""} · <span class="badge ${st.badge}" style="font-size:.68rem;padding:1px 7px">${st.label}</span></span>
+          <b>${esc(r.refNo||"-")} — ${esc(r.company||"-")}</b>
+          <span>${esc(r.serviceName||"")} · <span class="badge ${st.badge}" style="font-size:.68rem;padding:1px 7px">${st.label}</span></span>
         </div>
         <div class="dd-amt">${fmtNum(v)} ر.س</div>
       </div>`;
@@ -5500,7 +5497,7 @@ function renderDashYearChart(all){
     <path d="${dPath}" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-dasharray="5,4" opacity=".85"/>
     ${pts.map((p,i)=>`<circle cx="${p.x}" cy="${p.y}" r="5" fill="var(--card-solid)" stroke="var(--primary)" stroke-width="3"/>
       <circle cx="${dpts[i].x}" cy="${dpts[i].y}" r="3.5" fill="var(--green)"/>
-      <text x="${p.x}" y="${h-pad+18}" font-size="11" font-weight="700" fill="var(--text)" text-anchor="middle">${p.k}</text>
+      <text x="${p.x}" y="${h-pad+18}" font-size="11" font-weight="700" fill="var(--text)" text-anchor="middle">${esc(p.k)}</text>
       <text x="${p.x}" y="${p.y-10}" font-size="11" font-weight="800" fill="var(--primary)" text-anchor="middle">${p.v}</text>`).join("")}
   </svg></div>
   <div style="display:flex;gap:16px;justify-content:center;margin-top:8px;font-size:.78rem;color:var(--text-soft)">
@@ -5515,9 +5512,9 @@ function renderDashYearChart(all){
 function aiEvaluate(id){
   const r=STATE.requests.find(x=>x.id===id); if(!r)return;
   openAiModal("🤖 تقييم ذكي للطلب","جاري التحليل بالذكاء الاصطناعي...");
-  aiCall("evaluate",{request:r},(res)=>{
+  aiCall("evaluate",{request:aiSafeReq(r)},(res)=>{
     if(!res||!res.ok){
-      setAiModalContent(`<div style="color:var(--red);text-align:center;padding:20px">${(res&&res.error)||"تعذّر الاتصال بخدمة الذكاء الاصطناعي"}</div>`);
+      setAiModalContent(`<div style="color:var(--red);text-align:center;padding:20px">${esc((res&&res.error)||"تعذّر الاتصال بخدمة الذكاء الاصطناعي")}</div>`);
       return;
     }
     const ev=res.result||{};
@@ -5536,15 +5533,15 @@ function aiEvaluate(id){
       </div>
       <div style="margin-top:14px;font-size:1.1rem;font-weight:700;color:${rec.color}">${rec.ic} ${rec.label}</div>
     </div>`;
-    if(ev.summary)html+=`<div style="background:var(--bg);padding:14px;border-radius:12px;margin-bottom:16px;border-right:3px solid var(--primary)"><b>الملخص:</b> ${ev.summary}</div>`;
+    if(ev.summary)html+=`<div style="background:var(--bg);padding:14px;border-radius:12px;margin-bottom:16px;border-right:3px solid var(--primary)"><b>الملخص:</b> ${esc(ev.summary)}</div>`;
     if(ev.strengths&&ev.strengths.length){
       html+=`<div style="margin-bottom:14px"><div style="font-weight:700;color:var(--green);margin-bottom:8px">✓ نقاط القوة</div>`;
-      html+=ev.strengths.map(s=>`<div style="padding:6px 0;color:var(--text-soft)">• ${s}</div>`).join("");
+      html+=ev.strengths.map(s=>`<div style="padding:6px 0;color:var(--text-soft)">• ${esc(s)}</div>`).join("");
       html+=`</div>`;
     }
     if(ev.concerns&&ev.concerns.length){
       html+=`<div style="margin-bottom:14px"><div style="font-weight:700;color:var(--red);margin-bottom:8px">⚠ ملاحظات</div>`;
-      html+=ev.concerns.map(s=>`<div style="padding:6px 0;color:var(--text-soft)">• ${s}</div>`).join("");
+      html+=ev.concerns.map(s=>`<div style="padding:6px 0;color:var(--text-soft)">• ${esc(s)}</div>`).join("");
       html+=`</div>`;
     }
     html+=`<div style="font-size:.75rem;color:var(--text-soft);text-align:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">🤖 تم التحليل بواسطة Groq AI — التوصية استرشادية وللمراجع القرار النهائي</div>`;
@@ -5552,6 +5549,12 @@ function aiEvaluate(id){
   });
 }
 
+/* نسخة مختصرة من الطلب للذكاء الاصطناعي (بدون روابط/ملاحظات/استكمال) — تمنع تجاوز طول الرابط */
+function aiSafeReq(r){
+  const f=Object.assign({},r.fields||{}); delete f._fileLinks; delete f.notes;
+  return {refNo:r.refNo,serviceName:r.serviceName,company:r.company,country:r.country,priceOffer:r.priceOffer||r.amount,
+          currency:r.currency,claimAmount:r.claimAmount,disbursed:r.disbursed,status:r.status,date:r.date,fields:f};
+}
 /* مودال AI عام */
 function openAiModal(title,initialContent){
   let ov=document.getElementById("aiOverlay");
@@ -5587,7 +5590,7 @@ function aiReportSummary(){
   const rejected=all.filter(r=>r.status==="rejected").length;
   const manual=all.filter(r=>r.status==="manual").length;
   const total=all.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
-  const approvedAmt=approved.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  const approvedAmt=approved.reduce((s,r)=>s+reqVal(r),0);
   const byService={}; all.forEach(r=>{byService[r.serviceName]=(byService[r.serviceName]||0)+1;});
   const byCountry={}; all.forEach(r=>{byCountry[r.country||'-']=(byCountry[r.country||'-']||0)+1;});
   const topService=Object.entries(byService).sort((a,b)=>b[1]-a[1])[0];
@@ -5603,10 +5606,10 @@ function aiReportSummary(){
   openAiModal("✨ تحليل ذكي للتقارير","جاري إنشاء الملخص الذكي...");
   aiCall("summary",{stats:stats},(res)=>{
     if(!res||!res.ok){
-      setAiModalContent(`<div style="color:var(--red);text-align:center;padding:20px">${(res&&res.error)||"تعذّر الاتصال"}</div>`);
+      setAiModalContent(`<div style="color:var(--red);text-align:center;padding:20px">${esc((res&&res.error)||"تعذّر الاتصال")}</div>`);
       return;
     }
-    const txt=(res.result||"").replace(/\n/g,"<br>");
+    const txt=esc(res.result||"").replace(/\n/g,"<br>");
     setAiModalContent(`<div style="line-height:1.9;font-size:.98rem">${txt}</div>
       <div style="font-size:.75rem;color:var(--text-soft);text-align:center;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">🤖 تم التحليل بواسطة Groq AI</div>`);
   });
@@ -5642,7 +5645,7 @@ function addChatMessage(sender,text){
   const isUser=sender==="user";
   const bubble=document.createElement("div");
   bubble.style.cssText="max-width:85%;padding:10px 14px;border-radius:16px;font-size:.9rem;line-height:1.6;animation:fadeUp .3s;"+(isUser?"background:var(--grad-primary);color:#fff;align-self:flex-start;border-bottom-right-radius:4px":"background:var(--bg);color:var(--text);align-self:flex-end;border-bottom-left-radius:4px");
-  bubble.innerHTML=text.replace(/\n/g,"<br>");
+  bubble.innerHTML=esc(text).replace(/\n/g,"<br>");
   c.appendChild(bubble);
   c.scrollTop=c.scrollHeight;
 }
@@ -5686,20 +5689,20 @@ function printMyReport(){
     const st=(STATUS_MAP[r.status]||STATUS_MAP.submitted).label;
     return `<tr>
       <td>${i+1}</td>
-      <td>${r.refNo||""}</td>
-      <td>${r.serviceName||""}</td>
-      <td>${(r.fields&&r.fields.company)||r.company||""}</td>
+      <td>${esc(r.refNo||"")}</td>
+      <td>${esc(r.serviceName||"")}</td>
+      <td>${esc((r.fields&&r.fields.company)||r.company||"")}</td>
       <td>${money(r.priceOffer||r.amount)}</td>
       <td>${money(r.disbursed)}</td>
       <td>${st}</td>
-      <td>${fmtDate(r.date)||""}</td>
+      <td>${esc(fmtDate(r.date)||"")}</td>
     </tr>`;
   }).join("");
   const now=new Date().toLocaleDateString("ar-SA",{year:"numeric",month:"long",day:"numeric"});
   const html=`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8">
-  <title>تقرير طلباتي - ${STATE.user}</title>
+  <title>تقرير طلباتي - ${esc(STATE.user)}</title>
   <style>
-    body{font-family:'Segoe UI',Tahoma,sans-serif;padding:30px;color:#1c2b25}
+    body{font-family:'Sakkal Majalla','Traditional Arabic','Segoe UI',Tahoma,sans-serif;font-size:17px;padding:30px;color:#1c2b25}
     .head{text-align:center;border-bottom:3px solid #1a5e3a;padding-bottom:16px;margin-bottom:20px}
     .head h1{color:#1a5e3a;margin:0 0 6px}
     .head p{color:#666;margin:2px 0;font-size:14px}
@@ -5717,7 +5720,7 @@ function printMyReport(){
   <div class="head">
     <h1>تقرير طلبات الحوافز</h1>
     <p>مجموعة بحرة للكهرباء — برنامج الصادرات السعودية</p>
-    <p><b>منشئ الطلبات:</b> ${STATE.user} &nbsp;|&nbsp; <b>التاريخ:</b> ${now}</p>
+    <p><b>منشئ الطلبات:</b> ${esc(STATE.user)} &nbsp;|&nbsp; <b>التاريخ:</b> ${now}</p>
   </div>
   <div class="cards">
     <div class="card"><div class="v">${my.length}</div><div class="l">إجمالي طلباتي</div></div>
@@ -5735,6 +5738,7 @@ function printMyReport(){
   </div>
   </body></html>`;
   const w=window.open("","_blank");
+  if(!w){ toast("المتصفح منع النافذة المنبثقة — اسمح بها لعرض التقرير","err"); return; }
   w.document.write(html); w.document.close();
   toast("✅ تم إنشاء تقرير طلباتك","ok");
 }
@@ -5747,20 +5751,20 @@ function printRequestReport(id){
   if(s){
     for(const f of s.fields){
       if(f.t==="file")continue;
-      const v=r.fields[f.k]||"-";
-      rows+=`<tr><td class="lbl">${f.l}</td><td>${v||"-"}</td></tr>`;
+      const v=(r.fields||{})[f.k]||"-";
+      rows+=`<tr><td class="lbl">${f.l}</td><td>${esc(v||"-")}</td></tr>`;
     }
   }
-  if(r.fileName)rows+=`<tr><td class="lbl">المرفقات</td><td>${r.fileName}</td></tr>`;
-  const win=window.open("","_blank");
-  win.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>تقرير الطلب ${r.refNo}</title>
+  if(r.fileName)rows+=`<tr><td class="lbl">المرفقات</td><td>${esc(r.fileName)}</td></tr>`;
+  const win=window.open("","_blank"); if(!win){ toast("المتصفح منع النافذة المنبثقة — اسمح بها لعرض التقرير","err"); return; }
+  win.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>تقرير الطلب ${esc(r.refNo)}</title>
   <style>
-    body{font-family:'Segoe UI',Tahoma,Arial;padding:40px;color:#0a2a28;background:#fff}
-    .head{display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #0d9488;padding-bottom:20px;margin-bottom:24px}
+    body{font-family:'Sakkal Majalla','Traditional Arabic','Segoe UI',Tahoma,Arial;font-size:17px;padding:40px;color:#0a2a28;background:#fff}
+    .head{display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #1a5e3a;padding-bottom:20px;margin-bottom:24px}
     .head img{height:50px}
     .logos{display:flex;align-items:center;gap:16px}
     .sep{width:1.5px;height:40px;background:#ccc}
-    h1{color:#0d9488;font-size:1.5rem;margin:0}
+    h1{color:#1a5e3a;font-size:1.5rem;margin:0}
     .meta{color:#666;font-size:.9rem;margin-top:4px}
     .status{display:inline-block;padding:6px 16px;border-radius:20px;font-weight:700;font-size:.85rem;margin:16px 0}
     .s-green{background:#dcfce7;color:#15803d}.s-red{background:#fee2e2;color:#b91c1c}.s-amber{background:#fef3c7;color:#b45309}.s-blue{background:#dbeafe;color:#1d4ed8}
@@ -5768,24 +5772,24 @@ function printRequestReport(id){
     td{padding:12px 14px;border-bottom:1px solid #e5e5e5;font-size:.92rem}
     .lbl{color:#666;font-weight:600;width:42%;background:#f7faf9}
     .foot{margin-top:30px;padding-top:16px;border-top:1px solid #e5e5e5;color:#999;font-size:.8rem;text-align:center}
-    .note{background:#f7faf9;padding:14px;border-radius:8px;margin-top:16px;border-right:3px solid #0d9488}
+    .note{background:#f7faf9;padding:14px;border-radius:8px;margin-top:16px;border-right:3px solid #1a5e3a}
     @media print{.no-print{display:none}}
   </style></head><body>
   <div class="head">
     <div class="logos"><img src="${LOGO}"><div class="sep"></div><img src="${SAUDI_LOGO}"></div>
-    <div style="text-align:left"><h1>تقرير طلب حافز</h1><div class="meta">رقم الطلب: ${r.refNo}</div></div>
+    <div style="text-align:left"><h1>تقرير طلب حافز</h1><div class="meta">رقم الطلب: ${esc(r.refNo)}</div></div>
   </div>
-  <h2 style="color:#0a2a28">${r.serviceName}</h2>
+  <h2 style="color:#0a2a28">${esc(r.serviceName)}</h2>
   <span class="status ${st.badge==='green'?'s-green':st.badge==='red'?'s-red':st.badge==='blue'?'s-blue':'s-amber'}">${st.label}</span>
   <table>
-    <tr><td class="lbl">مقدم الطلب</td><td>${r.applicant}</td></tr>
-    <tr><td class="lbl">تاريخ التقديم</td><td>${r.date}</td></tr>
-    <tr><td class="lbl">العملة</td><td>${r.currency||'ريال سعودي'}</td></tr>
+    <tr><td class="lbl">مقدم الطلب</td><td>${esc(r.applicant)}</td></tr>
+    <tr><td class="lbl">تاريخ التقديم</td><td>${esc(r.date)}</td></tr>
+    <tr><td class="lbl">العملة</td><td>${esc(r.currency||'ريال سعودي')}</td></tr>
     ${rows}
   </table>
-  ${r.note?`<div class="note"><b>ملاحظة:</b> ${r.note}</div>`:''}
+  ${r.note?`<div class="note"><b>ملاحظة:</b> ${esc(r.note)}</div>`:''}
   <div class="foot">منصة خدمات دعم الحوافز — بحرة | تم إنشاء التقرير بتاريخ ${new Date().toLocaleDateString('ar-SA')}</div>
-  <div class="no-print" style="text-align:center;margin-top:24px"><button onclick="window.print()" style="background:#0d9488;color:#fff;border:none;padding:12px 30px;border-radius:10px;font-size:1rem;cursor:pointer;font-family:inherit">🖨️ طباعة / حفظ PDF</button></div>
+  <div class="no-print" style="text-align:center;margin-top:24px"><button onclick="window.print()" style="background:#1a5e3a;color:#fff;border:none;padding:12px 30px;border-radius:10px;font-size:1rem;cursor:pointer;font-family:inherit">🖨️ طباعة / حفظ PDF</button></div>
   </body></html>`);
   win.document.close();
 }
@@ -5797,32 +5801,32 @@ function printFullReport(){
   const rejected=all.filter(r=>r.status==="rejected").length;
   const manual=all.filter(r=>r.status==="manual").length;
   const pending=all.filter(r=>r.status==="submitted"||r.status==="preliminary"||r.status==="review").length;
-  const approvedAmt=approved.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  const approvedAmt=approved.reduce((s,r)=>s+reqVal(r),0);
   const rate=all.length?Math.round(approved.length/all.length*100):0;
   // تجميع حسب الخدمة
   const byService={}; all.forEach(r=>{byService[r.serviceName]=(byService[r.serviceName]||0)+1;});
   const byCountry={}; all.forEach(r=>{const c=r.country||'-';byCountry[c]=(byCountry[c]||0)+1;});
   const byCompany={}; all.forEach(r=>{const c=r.fields&&r.fields.company||'-';byCompany[c]=(byCompany[c]||0)+1;});
-  const svcRows=Object.entries(byService).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${k}</td><td style="text-align:center"><b>${v}</b></td></tr>`).join("");
-  const cntRows=Object.entries(byCountry).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${k}</td><td style="text-align:center"><b>${v}</b></td></tr>`).join("");
-  const compRows=Object.entries(byCompany).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${k}</td><td style="text-align:center"><b>${v}</b></td></tr>`).join("");
+  const svcRows=Object.entries(byService).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${esc(k)}</td><td style="text-align:center"><b>${v}</b></td></tr>`).join("");
+  const cntRows=Object.entries(byCountry).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${esc(k)}</td><td style="text-align:center"><b>${v}</b></td></tr>`).join("");
+  const compRows=Object.entries(byCompany).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${esc(k)}</td><td style="text-align:center"><b>${v}</b></td></tr>`).join("");
   const allRows=all.map(r=>{
     const st=STATUS_MAP[r.status]||STATUS_MAP.submitted;
     const cls=st.badge==='green'?'s-green':st.badge==='red'?'s-red':st.badge==='blue'?'s-blue':'s-amber';
-    return `<tr><td>${r.refNo}</td><td>${r.serviceName}</td><td>${r.country}</td><td>${fmtMoney(r.amount)}</td><td><span class="status ${cls}">${st.label}</span></td></tr>`;
+    return `<tr><td>${esc(r.refNo)}</td><td>${esc(r.serviceName)}</td><td>${esc(r.country)}</td><td>${fmtMoney(r.amount)}</td><td><span class="status ${cls}">${st.label}</span></td></tr>`;
   }).join("");
-  const win=window.open("","_blank");
+  const win=window.open("","_blank"); if(!win){ toast("المتصفح منع النافذة المنبثقة — اسمح بها لعرض التقرير","err"); return; }
   win.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>التقرير الشامل</title>
   <style>
-    body{font-family:'Segoe UI',Tahoma,Arial;padding:40px;color:#0a2a28;background:#fff}
-    .head{display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #0d9488;padding-bottom:20px;margin-bottom:24px}
+    body{font-family:'Sakkal Majalla','Traditional Arabic','Segoe UI',Tahoma,Arial;font-size:17px;padding:40px;color:#0a2a28;background:#fff}
+    .head{display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #1a5e3a;padding-bottom:20px;margin-bottom:24px}
     .logos{display:flex;align-items:center;gap:16px}.logos img{height:50px}.sep{width:1.5px;height:40px;background:#ccc}
-    h1{color:#0d9488;font-size:1.6rem;margin:0}h2{color:#0a2a28;font-size:1.2rem;margin:28px 0 12px;border-right:4px solid #0d9488;padding-right:12px}
+    h1{color:#1a5e3a;font-size:1.6rem;margin:0}h2{color:#0a2a28;font-size:1.2rem;margin:28px 0 12px;border-right:4px solid #1a5e3a;padding-right:12px}
     .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:20px 0}
     .kpi{background:#f7faf9;border:1px solid #e0f0ec;border-radius:12px;padding:18px;text-align:center}
-    .kpi .v{font-size:1.8rem;font-weight:800;color:#0d9488}.kpi .l{color:#666;font-size:.82rem;margin-top:4px}
+    .kpi .v{font-size:1.8rem;font-weight:800;color:#1a5e3a}.kpi .l{color:#666;font-size:.82rem;margin-top:4px}
     table{width:100%;border-collapse:collapse;margin-top:10px;font-size:.88rem}
-    th{background:#0d9488;color:#fff;padding:11px 14px;text-align:right}
+    th{background:#1a5e3a;color:#fff;padding:11px 14px;text-align:right}
     td{padding:10px 14px;border-bottom:1px solid #e5e5e5}
     tr:nth-child(even){background:#f7faf9}
     .status{display:inline-block;padding:4px 12px;border-radius:14px;font-weight:700;font-size:.76rem}
@@ -5855,7 +5859,7 @@ function printFullReport(){
   <h2>تفاصيل جميع الطلبات</h2>
   <table><tr><th>رقم الطلب</th><th>الخدمة</th><th>الدولة</th><th>المبلغ</th><th>الحالة</th></tr>${allRows}</table>
   <div class="foot">منصة خدمات دعم الحوافز — بحرة | تم إنشاء التقرير بتاريخ ${new Date().toLocaleDateString('ar-SA')}</div>
-  <div class="no-print" style="text-align:center;margin-top:24px"><button onclick="window.print()" style="background:#0d9488;color:#fff;border:none;padding:12px 30px;border-radius:10px;font-size:1rem;cursor:pointer;font-family:inherit">🖨️ طباعة / حفظ PDF</button></div>
+  <div class="no-print" style="text-align:center;margin-top:24px"><button onclick="window.print()" style="background:#1a5e3a;color:#fff;border:none;padding:12px 30px;border-radius:10px;font-size:1rem;cursor:pointer;font-family:inherit">🖨️ طباعة / حفظ PDF</button></div>
   </body></html>`);
   win.document.close();
 }
@@ -5871,21 +5875,31 @@ function loadRequests(){
   // الشارة تُحسب بعد تحميل الطلبات (لا قبلها)
   if(typeof updatePendingBadge==="function") updatePendingBadge();
   if(typeof renderHomeKpis==="function" && STATE.user) { try{ renderHomeKpis(); }catch(e){} }
-  // جلب من الشيت أيضاً
-  fetchFromSheet();
+  // الجلب من الشيت يتم عند الدخول (enterApp) فقط
 }
 
 /* ============================================================
    ربط Google Sheets عبر Apps Script (JSONP)
    ============================================================ */
-function jsonp(action,payload,cb){
+function jsonp(action,payload,cb,timeoutMs){
   if(SHEET_API.includes("PUT_YOUR")){ if(cb)cb({ok:false,offline:true}); return; }
-  const fn="cb_"+Date.now()+"_"+Math.floor(Math.random()*1000);
-  window[fn]=(res)=>{ if(cb)cb(res); delete window[fn]; s.remove(); };
+  const fn="cb_"+Date.now()+"_"+Math.floor(Math.random()*1e6);
+  let done=false, timer=null;
   const s=document.createElement("script");
+  const finish=(res)=>{
+    if(done) return; done=true;
+    clearTimeout(timer);
+    // نترك دالة فارغة بدل الحذف: لو وصل رد متأخر بعد المهلة لا يسبب خطأ
+    window[fn]=function(){ try{ delete window[fn]; }catch(e){} };
+    s.remove();
+    if(cb) try{ cb(res); }catch(e){ console.error(e); }
+  };
+  window[fn]=finish;
   const params=new URLSearchParams({action,callback:fn,payload:JSON.stringify(payload||{})});
   s.src=SHEET_API+"?"+params.toString();
-  s.onerror=()=>{ if(cb)cb({ok:false,error:"network"}); };
+  s.onerror=()=>finish({ok:false,error:"تعذّر الاتصال بالخادم"});
+  // مهلة: لو رجع الخادم صفحة خطأ (ليست JS) لا ينادى الـcallback أبداً → لا نعلّق الواجهة
+  timer=setTimeout(()=>finish({ok:false,error:"انتهت مهلة الاتصال بالخادم"}), timeoutMs||30000);
   document.body.appendChild(s);
 }
 /* POST آمن للعمليات الحساسة (كلمات المرور لا تظهر في الرابط ولا سجلات الخادم).
@@ -5900,8 +5914,9 @@ function postJSON(action,payload,cb){
   .then(r=>r.json())
   .then(res=>{ if(cb)cb(res); })
   .catch(err=>{
-    // احتياطي: لو فشل POST (CORS/شبكة) نرجع لـ JSONP حتى لا تتعطّل العملية
-    console.warn("POST فشل، تحويل لـ JSONP:", err);
+    console.warn("POST فشل:", err);
+    // العمليات الحساسة لا تتحوّل لـ JSONP أبداً (كانت ترسل كلمة المرور داخل الرابط)
+    if(/^(login|saveUser|deleteUser)$/.test(action)){ if(cb)cb({ok:false,error:"تعذّر الاتصال بالخادم، حاول مرة أخرى"}); return; }
     jsonp(action,payload,cb);
   });
 }
@@ -5933,7 +5948,7 @@ function editInSheet(req){
     claimAmount:req.claimAmount||"",
     disbursed:req.disbursed||"",
     fields:req.fields||{}
-  },(res)=>{ if(res&&res.ok)console.log("edited in sheet"); });
+  },(res)=>{ if(!(res&&res.ok)) toast("⚠️ لم يُحفظ التعديل في الشيت: "+((res&&res.error)||"لا يوجد رد"),"err"); });
 }
 function updateSheetStatus(req){
   jsonp("updateStatus",{
@@ -5941,25 +5956,19 @@ function updateSheetStatus(req){
     ministryRef:req.ministryRef||"",
     reviewer:STATE.user||"",           // اسم المراجع الذي حرّك الطلب
     completion:req.completion||null    // نرسل مستندات الاستكمال للشيت
-  },()=>{});
+  },(res)=>{ if(!(res&&res.ok)) toast("⚠️ لم تُحفظ الحالة في الشيت: "+((res&&res.error)||"لا يوجد رد"),"err"); });
 }
 function fetchFromSheet(){
   jsonp("list",{},(res)=>{
     if(res&&res.ok&&Array.isArray(res.data)){
-      res.data.forEach(sheetReq=>{
-        const local=STATE.requests.find(r=>r.refNo===sheetReq.refNo);
-        if(local){
-          // نحدّث الروابط والحالة من الشيت
-          if(sheetReq.fields&&sheetReq.fields._fileLinks){ local.fields._fileLinks=sheetReq.fields._fileLinks; local.fileLinks=sheetReq.fields._fileLinks; }
-          if(sheetReq.fileLinks&&sheetReq.fileLinks.length){ local.fileLinks=sheetReq.fileLinks; }
-          if(sheetReq.completion){ local.completion=sheetReq.completion; }
-        } else {
-          STATE.requests.push(sheetReq);
-        }
-      });
+      // الشيت هو المرجع: نأخذ نسخته لكل طلب، ونُبقي فقط الطلبات المحلية التي لم تصل للشيت بعد
+      const inSheet=new Set(res.data.map(x=>x.refNo));
+      const localOnly=STATE.requests.filter(r=>r.refNo&&!inSheet.has(r.refNo));
+      STATE.requests=localOnly.concat(res.data);
       coerceStatuses();
       saveRequests();
       if(document.getElementById("page-myrequests").classList.contains("active"))renderMyRequests();
+      if(STATE.user){ try{ renderHomeKpis(); }catch(e){} }
       if(STATE.role==="admin"||STATE.role==="reviewer"){ const a=document.getElementById("page-admin"); if(a&&a.classList.contains("active"))renderAdminTable(); }
       if(typeof updatePendingBadge==="function") updatePendingBadge();
     }
