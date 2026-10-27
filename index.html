@@ -56,7 +56,29 @@
   background:rgba(201,162,39,.18);border:1px solid rgba(201,162,39,.5);color:var(--gold-soft);font-weight:700;font-size:.68rem}
 #govRibbon .gr-dot{width:6px;height:6px;border-radius:50%;background:#37d98a;box-shadow:0 0 6px #37d98a;animation:grPulse 2.4s infinite}
 @keyframes grPulse{0%,100%{opacity:1}50%{opacity:.35}}
-@media(max-width:640px){#govRibbon{padding:0 10px;font-size:.66rem}#govRibbon .gr-txt{max-width:46vw}#govRibbon .gr-tag{display:none}}
+@media(max-width:640px){#govRibbon{padding:0 10px;font-size:.66rem}#govRibbon .gr-txt{max-width:56vw}#govRibbon .gr-tag{display:none}}
+
+/* ═══ مؤثرات المناسبات ═══ */
+#occasionBg{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0;transition:opacity 1.2s ease;
+  background-size:cover,cover,auto;background-position:center;background-repeat:no-repeat,no-repeat,repeat}
+#occasionBg.on{opacity:1}
+#occasionFx{position:fixed;inset:0;z-index:2;pointer-events:none;overflow:hidden}
+#topbar{z-index:40}  /* الهيدر فوق جزيئات المناسبات */
+.ofx{position:absolute;top:-8%;will-change:transform,opacity;user-select:none;
+  animation:ofxFall linear infinite;filter:drop-shadow(0 2px 4px rgba(0,0,0,.18))}
+@keyframes ofxFall{0%{transform:translateY(-10vh) rotate(0);opacity:0}
+  8%{opacity:var(--ofo,.9)}92%{opacity:var(--ofo,.9)}100%{transform:translateY(112vh) rotate(360deg);opacity:0}}
+.ofx.rise{top:auto;bottom:-8%;animation-name:ofxRise}
+@keyframes ofxRise{0%{transform:translateY(0) scale(.9);opacity:0}15%{opacity:var(--ofo,.85)}
+  85%{opacity:var(--ofo,.85)}100%{transform:translateY(-118vh) scale(1.1);opacity:0}}
+.ofx.tw{animation-name:ofxTwinkle}
+@keyframes ofxTwinkle{0%,100%{opacity:.15;transform:scale(.8)}50%{opacity:var(--ofo,.95);transform:scale(1.15)}}
+@media(prefers-reduced-motion:reduce){.ofx{animation-duration:0s!important;opacity:0!important}}
+/* شارة المناسبة داخل الشريط */
+#govRibbon.occasion{background:var(--occ-ribbon,linear-gradient(90deg,#06331f,var(--primary-dark),#06331f));border-bottom-color:var(--occ-accent,var(--gold))}
+/* زر مناسبة في اللوحة */
+.occ-select{width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:12px;background:var(--bg2);
+  font-family:inherit;font-weight:700;color:var(--text);cursor:pointer;font-size:.9rem}
 
 /* ═══ لوحة إعدادات المظهر ═══ */
 .settings-scrim{position:fixed;inset:0;background:rgba(10,42,40,.4);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);opacity:0;visibility:hidden;transition:.35s;z-index:998}
@@ -131,7 +153,7 @@ body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
   opacity:.35;animation:bgBreathe 14s ease-in-out infinite}
 @keyframes bgBreathe{0%,100%{opacity:.28;transform:scale(1)}50%{opacity:.45;transform:scale(1.08)}}
 [data-theme="dark"] body::before{opacity:.22}
-#topbar,#loginScreen,.layout{position:relative;z-index:1}
+#topbar,#loginScreen,.layout,.shell,main,#mobileNav{position:relative;z-index:1}
 ::-webkit-scrollbar{width:9px;height:9px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px}
@@ -1155,6 +1177,10 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
 </head>
 <body>
 
+<!-- طبقات مؤثرات المناسبات (اليوم الوطني، التأسيس، رمضان، العيدين) -->
+<div id="occasionBg" aria-hidden="true"></div>
+<div id="occasionFx" aria-hidden="true"></div>
+
 <!-- ========== SPLASH (معطّل - الدخول يظهر مباشرة) ========== -->
 <div id="splash" style="display:none">
   <div class="splash-logos">
@@ -1217,11 +1243,10 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
 <!-- ========== HEADER ========== -->
 <div id="govRibbon">
   <div class="gr-right">
-    <span class="gr-emblem">🏛️</span>
-    <span class="gr-txt">منصة بحرة للكهرباء · نظام موحّد لخدمات دعم الحوافز والصادرات</span>
+    <span class="gr-emblem" id="grEmblem">🏛️</span>
+    <span class="gr-txt" id="grTxt">منصة بحرة للكهرباء · نظام موحّد لخدمات دعم الحوافز والصادرات</span>
   </div>
   <div class="gr-left">
-    <span class="gr-tag">◆ نظام معتمد</span>
     <span class="gr-dot"></span><span style="font-size:.68rem">اتصال آمن</span>
   </div>
 </div>
@@ -1584,6 +1609,20 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
     <button class="sd-close" onclick="closeSettings()">✕</button>
   </div>
   <div class="sd-body">
+    <!-- مؤثرات المناسبات -->
+    <div class="sd-section">
+      <div class="sd-label">🎉 مؤثرات المناسبات</div>
+      <select class="occ-select" id="occSelect" onchange="setOccasion(this.value)">
+        <option value="auto">تلقائي (حسب التاريخ)</option>
+        <option value="off">إيقاف المؤثرات</option>
+        <option value="national">🇸🇦 اليوم الوطني</option>
+        <option value="founding">🗡️ يوم التأسيس</option>
+        <option value="ramadan">🌙 رمضان</option>
+        <option value="eid_fitr">🎉 عيد الفطر</option>
+        <option value="eid_adha">🕋 عيد الأضحى</option>
+      </select>
+      <div style="font-size:.72rem;color:var(--text-soft);margin-top:7px">يتبدّل الثيم والخلفية تلقائياً مع كل مناسبة — أو اخترها للمعاينة الآن.</div>
+    </div>
     <!-- الثيمات -->
     <div class="sd-section">
       <div class="sd-label">🎨 لون الهوية</div>
@@ -2413,6 +2452,7 @@ function setUIFont(font){
 // فتح/إغلاق اللوحة
 function openSettings(){
   buildThemeGrid(); syncSettingsUI();
+  { const os=document.getElementById("occSelect"); if(os){ let p="auto"; try{p=localStorage.getItem("ed_occasion")||"auto";}catch(e){} os.value=p; } }
   document.getElementById("settingsScrim").classList.add("show");
   document.getElementById("settingsDrawer").classList.add("show");
 }
@@ -6036,6 +6076,126 @@ window.addEventListener("resize",()=>{
     document.getElementById("mobileNav").style.display="none";
   }
 });
+
+/* ═══════════════════════════════════════════════════════════
+   محرك مؤثرات المناسبات — يبدّل الثيم تلقائياً حسب التاريخ
+   (اليوم الوطني، يوم التأسيس، رمضان، عيد الفطر، عيد الأضحى)
+   ═══════════════════════════════════════════════════════════ */
+function hijriParts(d){
+  try{
+    const f=new Intl.DateTimeFormat('en-u-ca-islamic-umalqura',{day:'numeric',month:'numeric'});
+    const o={}; f.formatToParts(d).forEach(p=>o[p.type]=p.value);
+    return {m:parseInt(o.month,10), d:parseInt(o.day,10)};
+  }catch(e){ return {m:0,d:0}; }
+}
+/* تعريف المناسبات — كل مناسبة: صورة خلفية (SVG مدمجة)، لون، شارة، جزيئات متحركة */
+const OCCASIONS = {
+  national:{
+    name:"🇸🇦 يومنا الوطني", accent:"#1a7e42",
+    ribbon:"linear-gradient(90deg,#05351f,#0a6b39 50%,#05351f)",
+    bg:"radial-gradient(circle at 20% 15%,rgba(26,126,66,.16),transparent 45%),radial-gradient(circle at 85% 80%,rgba(26,126,66,.12),transparent 50%),linear-gradient(135deg,#f3fbf6,#eafff2)",
+    parts:["🇸🇦","💚","🎉","✨","🌴"], mode:"fall", count:26,
+    greet:()=>`🇸🇦 كل عام والمملكة بخير · اليوم الوطني ${ (new Date().getFullYear()-1930) }`
+  },
+  founding:{
+    name:"🗡️ يوم التأسيس", accent:"#a86b2d",
+    ribbon:"linear-gradient(90deg,#3a2410,#7a4e1e 50%,#3a2410)",
+    bg:"radial-gradient(circle at 80% 10%,rgba(168,107,45,.18),transparent 45%),linear-gradient(135deg,#fbf6ee,#f3e9d8)",
+    parts:["🗡️","🌴","🏛️","🐎","✨"], mode:"fall", count:22,
+    greet:()=>"🗡️ يوم التأسيس · بدايتنا وأصالتنا"
+  },
+  ramadan:{
+    name:"🌙 رمضان مبارك", accent:"#caa23a",
+    ribbon:"linear-gradient(90deg,#1a1245,#3a2a7a 50%,#1a1245)",
+    bg:"radial-gradient(circle at 85% 15%,rgba(202,162,58,.22),transparent 42%),radial-gradient(circle at 12% 85%,rgba(120,90,220,.14),transparent 48%),linear-gradient(160deg,#faf6ff,#fff7e6)",
+    parts:["🌙","🏮","⭐","✨","🕌"], mode:"tw", count:30,
+    greet:()=>"🌙 رمضان مبارك · كل عام وأنتم بخير"
+  },
+  eid_fitr:{
+    name:"🎉 عيد الفطر", accent:"#caa23a",
+    ribbon:"linear-gradient(90deg,#0a4b2e,#1a7e42 50%,#0a4b2e)",
+    bg:"radial-gradient(circle at 80% 15%,rgba(202,162,58,.2),transparent 45%),radial-gradient(circle at 18% 82%,rgba(26,126,66,.14),transparent 50%),linear-gradient(135deg,#f3fbf6,#fff7e6)",
+    parts:["🌙","🏮","🎉","✨","🕌"], mode:"fall", count:26,
+    greet:()=>"🎉 عيد فطر مبارك · تقبّل الله طاعتكم"
+  },
+  eid_adha:{
+    name:"🕋 عيد الأضحى", accent:"#caa23a",
+    ribbon:"linear-gradient(90deg,#0a4b2e,#1a7e42 50%,#0a4b2e)",
+    bg:"radial-gradient(circle at 82% 18%,rgba(202,162,58,.2),transparent 45%),linear-gradient(135deg,#f4fbf7,#fff6e3)",
+    parts:["🕋","🐏","🎉","✨","🕌"], mode:"fall", count:24,
+    greet:()=>"🕋 عيد أضحى مبارك · تقبّل الله منا ومنكم"
+  }
+};
+/* يحدّد مناسبة اليوم تلقائياً */
+function detectOccasion(date){
+  const d=date||new Date();
+  const gM=d.getMonth()+1, gD=d.getDate();
+  const h=hijriParts(d);
+  // العيدان وأيامهما لها الأولوية على رمضان
+  if(h.m===10 && h.d>=1 && h.d<=3)   return "eid_fitr";    // 1-3 شوال
+  if(h.m===12 && h.d>=10 && h.d<=13) return "eid_adha";    // 10-13 ذو الحجة
+  if(h.m===9)                        return "ramadan";     // شهر رمضان كامل
+  // مناسبات ميلادية ثابتة
+  if(gM===9  && gD>=21 && gD<=24)    return "national";    // اليوم الوطني 23 سبتمبر
+  if(gM===2  && gD>=21 && gD<=23)    return "founding";    // يوم التأسيس 22 فبراير
+  return null;
+}
+let _occActive=null;
+function applyOccasion(force){
+  const bg=document.getElementById("occasionBg");
+  const fx=document.getElementById("occasionFx");
+  const ribbon=document.getElementById("govRibbon");
+  if(!bg||!fx) return;
+  // الإعداد: auto / off / <id محدد>
+  let pref="auto"; try{ pref=localStorage.getItem("ed_occasion")||"auto"; }catch(e){}
+  if(typeof force==="string") pref=force;
+  let key = pref==="off" ? null : (pref==="auto" ? detectOccasion() : pref);
+  const occ = key?OCCASIONS[key]:null;
+  _occActive=key;
+  // تنظيف
+  fx.innerHTML=""; bg.classList.remove("on");
+  if(ribbon){ ribbon.classList.remove("occasion"); ribbon.style.removeProperty("--occ-ribbon"); ribbon.style.removeProperty("--occ-accent"); }
+  const grTxt=document.getElementById("grTxt"), grEm=document.getElementById("grEmblem");
+  if(!occ){
+    if(grTxt) grTxt.textContent="منصة بحرة للكهرباء · نظام موحّد لخدمات دعم الحوافز والصادرات";
+    if(grEm) grEm.textContent="🏛️";
+    return;
+  }
+  // خلفية
+  bg.style.background=occ.bg; requestAnimationFrame(()=>bg.classList.add("on"));
+  // الشريط
+  if(ribbon){
+    ribbon.classList.add("occasion");
+    ribbon.style.setProperty("--occ-ribbon",occ.ribbon);
+    ribbon.style.setProperty("--occ-accent",occ.accent);
+  }
+  if(grTxt) grTxt.textContent=occ.greet();
+  if(grEm)  grEm.textContent=(occ.parts[0]||"🏛️");
+  // الجزيئات المتحركة
+  const n=occ.count||22;
+  for(let i=0;i<n;i++){
+    const s=document.createElement("span");
+    s.className="ofx"+(occ.mode==="tw"?" tw":(occ.mode==="rise"?" rise":""));
+    s.textContent=occ.parts[Math.floor(Math.random()*occ.parts.length)];
+    const size=14+Math.random()*22;
+    s.style.left=(Math.random()*100)+"%";
+    s.style.fontSize=size+"px";
+    s.style.setProperty("--ofo",(0.55+Math.random()*0.4).toFixed(2));
+    const dur=(occ.mode==="tw"?2.4+Math.random()*2.8:7+Math.random()*9);
+    s.style.animationDuration=dur+"s";
+    s.style.animationDelay=(-Math.random()*dur)+"s";
+    fx.appendChild(s);
+  }
+}
+/* يُستدعى عند تغيير الاختيار من اللوحة */
+function setOccasion(val){
+  try{ localStorage.setItem("ed_occasion",val); }catch(e){}
+  applyOccasion(val);
+}
+// تشغيل أولي + إعادة فحص كل ساعة (لو بقي التبويب مفتوحاً عبر منتصف الليل)
+document.addEventListener("DOMContentLoaded",()=>{ try{applyOccasion();}catch(e){} });
+try{ applyOccasion(); }catch(e){}
+setInterval(()=>{ try{ let p="auto"; try{p=localStorage.getItem("ed_occasion")||"auto";}catch(e){} if(p==="auto") applyOccasion(); }catch(e){} }, 3600000);
 </script>
 </body>
 </html>
