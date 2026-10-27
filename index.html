@@ -1877,7 +1877,7 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
   <!-- صف الرسوم الرئيسي: منحنى السنين + الحالات -->
   <div class="dash-grid">
     <div class="dash-panel">
-      <h3>📈 الطلبات والمصروفات</h3>
+      <h3>📈 الطلبات المصروفة سنوياً</h3>
       <div id="dashYearChart"></div>
     </div>
     <div class="dash-panel">
@@ -1893,7 +1893,7 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
       <div id="dashSupport"></div>
     </div>
     <div class="dash-panel">
-      <h3>📂 عدد الطلبات حسب نوع الحافز</h3>
+      <h3>📂 عدد الطلبات المصروفة حسب نوع الحافز</h3>
       <div id="dashType"></div>
     </div>
     <div class="dash-panel">
@@ -2665,7 +2665,7 @@ const I18N = {
   // لوحة العرض
   "لوحة عرض حوافز الصادرات":"Export Incentives Display Board",
   "مباشر — يتحدّث تلقائياً":"Live — auto-updating",
-  "📈 الطلبات والمصروفات":"📈 Requests & Disbursements",
+  "📈 الطلبات والمصروفات":"📈 Requests & Disbursements","📈 الطلبات المصروفة سنوياً":"📈 Disbursed Requests per Year",
   "📋 توزيع الحالات":"📋 Status Distribution",
   "🏢 حسب الشركة":"🏢 By Company",
   "📂 حسب نوع الحافز":"📂 By Incentive Type",
@@ -5160,8 +5160,11 @@ function updateDashClock(){
   document.getElementById("dashTime").textContent=now.toLocaleTimeString(loc,{hour:"2-digit",minute:"2-digit",second:"2-digit"});
   document.getElementById("dashDate").textContent=now.toLocaleDateString(loc,{weekday:"long",year:"numeric",month:"long",day:"numeric"});
 }
+/* شاشة العرض: كل اللوحات تعرض الطلبات المصروفة فقط؛ الدائرة (توزيع الحالات) وحدها تعرض كل الحالات */
+function dashDone(list){ return (list||[]).filter(r=>r.status==="disbursed"); }
 function renderDashboard(){
-  const all=STATE.requests;
+  const everything=STATE.requests;
+  const all=dashDone(everything);
   const total=all.length;
   const disb=r=>parseFloat(r.disbursed)||0;             // مبلغ الصرف الفعلي (عمود M)
   // الجهة الداعمة: لو الطلب استثنائي تُقرأ من "اسم المعرض/الجهة" (عمود J)،
@@ -5210,7 +5213,7 @@ function renderDashboard(){
         `المبلغ المصروف الفعلي`,"t1",changed,"all")}`;
 
   // توزيع الحالات
-  renderDashStatus(all);
+  renderDashStatus(everything);
   // الجهات الداعمة (نوع الدعم) + إجمالي مبلغ الصرف لكل جهة
   // الجهات الداعمة: تجميع حسب اسم الجهة الفعلي من عمود "نوع الدعم" (هيئة تنمية الصادرات / مدن / HRDF)
   renderDashSupport(all,disb,stype);
@@ -5425,7 +5428,8 @@ function supportKey(r){ return reqEntity(r)||"غير محدد"; }
 /* فتح مودال التنقيب: يعرض الطلبات المطابقة للفئة المضغوطة */
 function dashDrill(type,encKey){
   const key=decodeURIComponent(encKey);
-  const all=STATE.requests||[];
+  const onDash=document.getElementById("dashboardScreen").classList.contains("show");
+  const all=(onDash&&type!=="status")?dashDone(STATE.requests):(STATE.requests||[]);
   let list=[], title=key;
   if(type==="service"){ list=all.filter(r=>(r.serviceName||"")===key); title="الخدمة: "+key; }
   else if(type==="entity"){ list=all.filter(r=>!isClosed(r)&&supportKey(r)===key); title="الجهة الداعمة: "+key; }
@@ -5494,16 +5498,13 @@ function renderDashYearChart(all){
     ${yl}
     <path d="${areaPath}" fill="url(#dashArea)"/>
     <path d="${linePath}" fill="none" stroke="var(--primary)" stroke-width="3" stroke-linejoin="round"/>
-    <path d="${dPath}" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-dasharray="5,4" opacity=".85"/>
+
     ${pts.map((p,i)=>`<circle cx="${p.x}" cy="${p.y}" r="5" fill="var(--card-solid)" stroke="var(--primary)" stroke-width="3"/>
-      <circle cx="${dpts[i].x}" cy="${dpts[i].y}" r="3.5" fill="var(--green)"/>
+
       <text x="${p.x}" y="${h-pad+18}" font-size="11" font-weight="700" fill="var(--text)" text-anchor="middle">${esc(p.k)}</text>
       <text x="${p.x}" y="${p.y-10}" font-size="11" font-weight="800" fill="var(--primary)" text-anchor="middle">${p.v}</text>`).join("")}
   </svg></div>
-  <div style="display:flex;gap:16px;justify-content:center;margin-top:8px;font-size:.78rem;color:var(--text-soft)">
-    <span><span style="display:inline-block;width:13px;height:3px;background:var(--primary);vertical-align:middle;margin-left:5px"></span>إجمالي الطلبات</span>
-    <span><span style="display:inline-block;width:13px;height:3px;background:var(--green);vertical-align:middle;margin-left:5px"></span>المصروفة</span>
-  </div>`;
+`;
 }
 
 /* ============================================================
