@@ -1928,7 +1928,7 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
 
 /* ===== إعدادات ربط Google Sheets ===== */
 // ضع هنا رابط الـ Web App بعد نشر Apps Script (انظر التعليمات)
-const SHEET_API = "https://script.google.com/macros/s/AKfycbwh0SKamejMZWg2nlXd5BMK-W3frfIJuSnTkj1Anw0TAKIx8-azcRv7-rPlbw4GJqOAAQ/exec";
+const SHEET_API = "https://script.google.com/macros/s/AKfycbwRcuFiQfWhOUssJbvgeKrC2bHRGGU_e2lJu1xx3pHSQXua_GFAlHMKBYipXMulfE2-8g/exec";
 // إعدادات Cloudinary لرفع الملفات
 const CLOUDINARY_CLOUD = "k0azlosx";
 const CLOUDINARY_PRESET = "bahra_incentives";
@@ -2180,6 +2180,8 @@ const STATUS_MAP = {
 };
 /* الحالات المُنهية (لا تُحتسب ضمن المبالغ أو قيد المعالجة) */
 function isClosed(r){ return r.status==="rejected"||r.status==="manual"; }
+/* سياسة بحرة: لا يوجد "رفض" للمستفيد — أي طلب مرفوض/ملغي يُعرض كـ"تتم معالجته يدوياً" */
+function coerceStatuses(){ (STATE.requests||[]).forEach(r=>{ if(r.status==="rejected") r.status="manual"; }); }
 // تسلسل المراحل (بدون الرفض)
 const STATUS_FLOW = ["submitted","preliminary","review","disbursed"];
 // الحالة الافتراضية للطلب الجديد
@@ -2339,7 +2341,7 @@ function enterApp(){
   if(!SHEET_API.includes("PUT_YOUR")){
     jsonp("list",{},(res)=>{
       if(res&&res.ok&&res.data){
-        STATE.requests=res.data;
+        STATE.requests=res.data; coerceStatuses();
         renderHomeKpis();
         saveRequests();
         if(typeof updatePendingBadge==="function") updatePendingBadge();
@@ -5128,7 +5130,7 @@ function openDashboard(){
     if(!SHEET_API.includes("PUT_YOUR")){
       jsonp("list",{},(res)=>{
         if(res&&res.ok&&res.data){
-          STATE.requests=res.data; saveRequests();
+          STATE.requests=res.data; coerceStatuses(); saveRequests();
           renderDashboard();
         }
       });
@@ -5865,6 +5867,7 @@ function saveRequests(){ setLS("ed_requests",JSON.stringify(STATE.requests)); }
 function loadRequests(){
   const d=getLS("ed_requests");
   if(d){ try{STATE.requests=JSON.parse(d);}catch(e){STATE.requests=[];} }
+  coerceStatuses();
   // الشارة تُحسب بعد تحميل الطلبات (لا قبلها)
   if(typeof updatePendingBadge==="function") updatePendingBadge();
   if(typeof renderHomeKpis==="function" && STATE.user) { try{ renderHomeKpis(); }catch(e){} }
@@ -5954,6 +5957,7 @@ function fetchFromSheet(){
           STATE.requests.push(sheetReq);
         }
       });
+      coerceStatuses();
       saveRequests();
       if(document.getElementById("page-myrequests").classList.contains("active"))renderMyRequests();
       if(STATE.role==="admin"||STATE.role==="reviewer"){ const a=document.getElementById("page-admin"); if(a&&a.classList.contains("active"))renderAdminTable(); }
