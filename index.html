@@ -34,7 +34,29 @@
   --grad-green:#1a7e42;
   --grad-bg:#f4f6f5;
   --blur:0px;
+  --gold:#c9a227;           /* ذهبي رسمي للطابع الحكومي */
+  --gold-soft:#f3e9c6;
 }
+
+/* ═══ الشريط الرسمي العلوي (طابع الأنظمة الحكومية) ═══ */
+#govRibbon{
+  display:none;position:relative;z-index:101;
+  height:30px;align-items:center;justify-content:space-between;
+  padding:0 24px;color:#eafff2;font-size:.74rem;font-weight:600;letter-spacing:.2px;
+  background:
+    repeating-linear-gradient(135deg,rgba(255,255,255,.04) 0 2px,transparent 2px 9px),
+    linear-gradient(90deg,#06331f 0%,var(--primary-dark) 55%,#06331f 100%);
+  border-bottom:2px solid var(--gold);
+}
+#govRibbon .gr-right{display:flex;align-items:center;gap:9px;min-width:0}
+#govRibbon .gr-emblem{font-size:.95rem;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))}
+#govRibbon .gr-txt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#govRibbon .gr-left{display:flex;align-items:center;gap:8px;flex-shrink:0}
+#govRibbon .gr-tag{display:inline-flex;align-items:center;gap:5px;padding:2px 10px;border-radius:20px;
+  background:rgba(201,162,39,.18);border:1px solid rgba(201,162,39,.5);color:var(--gold-soft);font-weight:700;font-size:.68rem}
+#govRibbon .gr-dot{width:6px;height:6px;border-radius:50%;background:#37d98a;box-shadow:0 0 6px #37d98a;animation:grPulse 2.4s infinite}
+@keyframes grPulse{0%,100%{opacity:1}50%{opacity:.35}}
+@media(max-width:640px){#govRibbon{padding:0 10px;font-size:.66rem}#govRibbon .gr-txt{max-width:46vw}#govRibbon .gr-tag{display:none}}
 
 /* ═══ لوحة إعدادات المظهر ═══ */
 .settings-scrim{position:fixed;inset:0;background:rgba(10,42,40,.4);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);opacity:0;visibility:hidden;transition:.35s;z-index:998}
@@ -1193,6 +1215,16 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
 </div>
 
 <!-- ========== HEADER ========== -->
+<div id="govRibbon">
+  <div class="gr-right">
+    <span class="gr-emblem">🏛️</span>
+    <span class="gr-txt">منصة بحرة للكهرباء · نظام موحّد لخدمات دعم الحوافز والصادرات</span>
+  </div>
+  <div class="gr-left">
+    <span class="gr-tag">◆ نظام معتمد</span>
+    <span class="gr-dot"></span><span style="font-size:.68rem">اتصال آمن</span>
+  </div>
+</div>
 <header style="display:none" id="topbar">
   <div class="brand">
     <button class="icon-btn hamburger" onclick="toggleSidebar()">☰</button>
@@ -1281,7 +1313,8 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
               <option value="review">تحت الدراسة</option>
               <option value="returned">معاد لاستكمال النواقص</option>
               <option value="disbursed">تم الصرف</option>
-              <option value="rejected">تتم معالجته يدوياً</option>
+              <option value="manual">تتم معالجته يدوياً</option>
+              <option value="rejected">تم رفض الطلب</option>
             </select>
             <select id="myReqServiceFilter" onchange="renderMyRequests()" class="flt-select">
               <option value="">كل الخدمات</option>
@@ -1323,7 +1356,8 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
               <option value="review">تحت الدراسة</option>
               <option value="returned">معاد لاستكمال النواقص</option>
               <option value="disbursed">تم الصرف</option>
-              <option value="rejected">تتم معالجته يدوياً</option>
+              <option value="manual">تتم معالجته يدوياً</option>
+              <option value="rejected">تم رفض الطلب</option>
             </select>
             <select id="adminServiceFilter" onchange="renderAdminTable()" class="flt-select">
               <option value="">كل الخدمات</option>
@@ -1855,7 +1889,7 @@ tbody tr:hover td:last-child{ background:var(--bg) !important; }
 
 /* ===== إعدادات ربط Google Sheets ===== */
 // ضع هنا رابط الـ Web App بعد نشر Apps Script (انظر التعليمات)
-const SHEET_API = "https://script.google.com/macros/s/AKfycbybY4BODdrmzgi8hZTlXMfkCXnbpTAmgltaU_FOfCUx81YKXAeLKik12uZfdRA8Ggup/exec";
+const SHEET_API = "https://script.google.com/macros/s/AKfycbwh0SKamejMZWg2nlXd5BMK-W3frfIJuSnTkj1Anw0TAKIx8-azcRv7-rPlbw4GJqOAAQ/exec";
 // إعدادات Cloudinary لرفع الملفات
 const CLOUDINARY_CLOUD = "k0azlosx";
 const CLOUDINARY_PRESET = "bahra_incentives";
@@ -2102,8 +2136,11 @@ const STATUS_MAP = {
   review:     {label:"طلب الصرف تحت الدراسة", badge:"amber", step:3, icon:"🔍"},
   returned:   {label:"معاد لاستكمال نواقص صرف الحافز", badge:"orange", step:3, icon:"↩️"},
   disbursed:  {label:"تم صرف طلب الحافز", badge:"green", step:4, icon:"✅"},
-  rejected:   {label:"تتم معالجته يدوياً", badge:"amber", step:0, icon:"✋"}
+  manual:     {label:"تتم معالجته يدوياً", badge:"amber", step:0, icon:"✋"},
+  rejected:   {label:"تم رفض طلب الحافز", badge:"red", step:0, icon:"❌"}
 };
+/* الحالات المُنهية (لا تُحتسب ضمن المبالغ أو قيد المعالجة) */
+function isClosed(r){ return r.status==="rejected"||r.status==="manual"; }
 // تسلسل المراحل (بدون الرفض)
 const STATUS_FLOW = ["submitted","preliminary","review","disbursed"];
 // الحالة الافتراضية للطلب الجديد
@@ -2233,6 +2270,7 @@ function logout(){
   delLS("ed_session");
   STATE.user=null; STATE.requests=STATE.requests; // إبقاء البيانات
   document.getElementById("topbar").style.display="none";
+  { const gr=document.getElementById("govRibbon"); if(gr) gr.style.display="none"; }
   document.getElementById("shell").style.display="none";
   document.getElementById("mobileNav").style.display="none";
   // إغلاق أي مودالات مفتوحة
@@ -2245,6 +2283,7 @@ function logout(){
 }
 function enterApp(){
   document.getElementById("topbar").style.display="flex";
+  { const gr=document.getElementById("govRibbon"); if(gr) gr.style.display="flex"; }
   document.getElementById("shell").style.display="flex";
   document.getElementById("mobileNav").style.display="none";
   document.getElementById("userName").textContent=STATE.user;
@@ -2931,9 +2970,42 @@ const INCENTIVES = {
   marketing:     { pct:75, cap:600000  }
 };
 function incentiveOf(svcId){ return INCENTIVES[svcId]||null; }
+/* يحدّد مفتاح الخدمة (ومنها نسبة الحافز) من serviceId، أو من اسم الخدمة كبديل موثوق
+   حتى لو كان serviceId مخزّناً خطأ في الشيت. يرجع null للدعم الاستثنائي أو غير المعروف. */
+function svcKeyOf(r){
+  const id=(r&&r.serviceId||"").toString().trim();
+  const n=(r&&r.serviceName||"").toString();
+  // الدعم الاستثنائي: لا يوجد له حافز ثابت
+  if(id==="exceptional"||/الدعم الاستثنائي/.test(n)) return null;
+  // اسم الخدمة هو المصدر الموثوق (serviceId قد يكون مخزّناً خطأ فيظهر حافز خاطئ)
+  if(/قانون/.test(n))                          return "legal";
+  if(/تسجيل|شهاد|إصدار شهادات/.test(n))         return "product_reg";
+  if(/زيارة|مشتري/.test(n))                     return "buyer_visit";
+  if(/لغ|ترجم/.test(n))                         return "lang_support";
+  if(/استشار/.test(n))                          return "consulting";
+  if(/تدريب/.test(n))                           return "training";
+  if(/تخصيص|تكييف/.test(n))                     return "customization";
+  if(/معرض|معارض/.test(n))                      return "exhibition";
+  if(/إلكترون|الكترون|متجر/.test(n))            return "ecommerce";
+  if(/تسويق|إعلان|اعلان|ترويج/.test(n))          return "marketing";
+  // بديل أخير: serviceId إن كان معروفاً
+  if(id && INCENTIVES[id]) return id;
+  return null;
+}
+/* الحافز المناسب للطلب (بالاعتماد على svcKeyOf — يصحّح أي خطأ في serviceId) */
+function incentiveFor(r){ const k=svcKeyOf(r); return k?INCENTIVES[k]:null; }
+/* هل الطلب من خدمات هيئة تنمية الصادرات (أي خدمة من العشر، وليس استثنائياً)؟ */
+function isExportService(r){ return svcKeyOf(r)!==null; }
 /* المبلغ المتوقع = عرض السعر × النسبة، بحد أقصى السقف السنوي */
 function calcIncentive(svcId, price){
   const inc=incentiveOf(svcId); const p=parseFloat(price)||0;
+  if(!inc||p<=0) return null;
+  const raw=p*inc.pct/100;
+  return { pct:inc.pct, cap:inc.cap, raw:raw, amount:Math.min(raw,inc.cap), capped:raw>inc.cap };
+}
+/* نفس الحساب لكن بالاعتماد على الطلب (يصحّح نسبة الحافز من اسم الخدمة) */
+function calcIncentiveFor(r, price){
+  const inc=incentiveFor(r); const p=parseFloat(price)||0;
   if(!inc||p<=0) return null;
   const raw=p*inc.pct/100;
   return { pct:inc.pct, cap:inc.cap, raw:raw, amount:Math.min(raw,inc.cap), capped:raw>inc.cap };
@@ -3295,7 +3367,11 @@ function sortNewestFirst(arr){
 }
 
 function reqEntity(r){
-  // نفحص نوع الدعم (F) واسم الجهة (J) معاً — لاكتشاف الجهة أينما كُتبت
+  // أولاً: أي خدمة من خدمات الحوافز العشر هي خدمة "هيئة تنمية الصادرات" دائماً،
+  // مهما كانت خانة الجهة (J) فارغة أو مكتوبة خطأ — هذا يمنع تصنيف الدعم القانوني
+  // ونحوه ضمن "الدعم الاستثنائي".
+  if(isExportService(r)) return "هيئة تنمية الصادرات";
+  // نفحص نوع الدعم (F) واسم الجهة (J) معاً — لاكتشاف الجهة أينما كُتبت (للاستثنائي فقط)
   const st=(r.supportType||"").toString().trim();
   const en=(r.entityName||"").toString().trim();
   const both=st+" | "+en;   // نص مجمّع للبحث
@@ -3376,6 +3452,7 @@ function renderAdminKpis(){
   const pending=all.filter(r=>r.status==="submitted"||r.status==="preliminary"||r.status==="review").length;
   const approved=all.filter(r=>r.status==="disbursed").length;
   const rejected=all.filter(r=>r.status==="rejected").length;
+  const manual=all.filter(r=>r.status==="manual").length;
   const total=all.reduce((s,r)=>s+(parseFloat(r.disbursed)||0),0);
   document.getElementById("adminKpis").innerHTML=`
     ${kpiHTML("📋","إجمالي الطلبات",all.length,"b-green")}
@@ -3437,8 +3514,8 @@ function renderAdminTable(){
 
   const thead=document.querySelector("#adminTable thead");
   const tbody=document.querySelector("#adminTable tbody");
-  thead.innerHTML=`<tr><th>رقم الطلب</th><th>منشئ الطلب</th><th>الخدمة</th><th>الجهة الداعمة</th><th>المبلغ</th><th>الحالة</th><th>المراجع</th><th>الإجراءات</th></tr>`;
-  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="ei">📭</div><p>لا توجد طلبات مطابقة</p></div></td></tr>`; return; }
+  thead.innerHTML=`<tr><th>رقم الطلب</th><th>منشئ الطلب</th><th>الشركة</th><th>الخدمة</th><th>الجهة الداعمة</th><th>المبلغ</th><th>الحالة</th><th>المراجع</th><th>الإجراءات</th></tr>`;
+  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="9"><div class="empty"><div class="ei">📭</div><p>لا توجد طلبات مطابقة</p></div></td></tr>`; return; }
   tbody.innerHTML=rows.map(r=>{
     const st=STATUS_MAP[r.status]||STATUS_MAP.submitted;
     const nextStage=getNextStage(r.status);
@@ -3446,18 +3523,19 @@ function renderAdminTable(){
     if(nextStage){
       actionBtns+=`<button class="act-btn approve" onclick="advanceStatus('${r.id}')" title="${STATUS_MAP[nextStage].label}">▶ ${nextStageShort(nextStage)}</button>`;
     }
-    if(r.status!=="disbursed"&&r.status!=="rejected"){
+    if(r.status!=="disbursed"&&!isClosed(r)){
       actionBtns+=`<button class="act-btn" style="background:#fcefcf;color:#9a7414;border-color:#eacb7a" onclick="rejectRequest('${r.id}')">✋ معالجة يدوية</button>`;
     }
-    if(r.status!=="rejected"){
+    if(!isClosed(r)){
       actionBtns+=`<button class="act-btn" title="تعديل المبالغ" onclick="openAmountsModal('${r.id}')">💵</button>`;
     }
     actionBtns+=`<button class="act-btn" onclick="printRequestReport('${r.id}')">📄</button>`;
-    const isExc2=(r.serviceId==="exceptional"||/استثنائي|التحول الرقمي/.test(r.serviceName||""));
-    const entity2=(isExc2&&r.entityName)?r.entityName:(r.supportType||"—");
+    const entity2=reqEntity(r)||"—";
+    const company2=(r.fields&&r.fields.company)||r.company||"—";
     return `<tr class="clickable-row" onclick="viewDetail('${r.id}')">
       <td><b>${r.refNo}</b>${r.ministryRef?`<br><span style="font-size:.74rem;color:var(--primary)">🏛️ الصادرات: ${r.ministryRef}</span>`:""}</td>
       <td>${r.applicant}</td>
+      <td><span style="font-size:.85rem">${company2}</span></td>
       <td>${r.serviceName}</td>
       <td><span style="font-size:.85rem">${entity2}</span></td>
       <td>${fmtMoney(r.amount)}</td>
@@ -3571,7 +3649,7 @@ function closeAmountsModal(){ document.getElementById("amountsOverlay").classLis
 function updateAmtPreview(){
   const box=document.getElementById("amtPreview"); if(!box||!_amtId) return;
   const r=STATE.requests.find(x=>x.id===_amtId); if(!r){ box.style.display="none"; return; }
-  const c=calcIncentive(r.serviceId, document.getElementById("amtPrice").value);
+  const c=calcIncentiveFor(r, document.getElementById("amtPrice").value);
   if(!c){ box.style.display="none"; return; }
   const paid=parseFloat(document.getElementById("amtDisb").value)||0;
   const diff=paid-c.amount;
@@ -3637,7 +3715,7 @@ function closeRejectModal(){
 function confirmReject(){
   if(!_rejectId)return;
   const r=STATE.requests.find(x=>x.id===_rejectId); if(!r)return;
-  r.status="rejected";
+  r.status="manual";
   r.reviewer=STATE.user;
   r.note=document.getElementById("rejectReason").value.trim();
   saveRequests(); updateSheetStatus(r);
@@ -3941,9 +4019,9 @@ function viewDetail(id){
   </div>`;
   // بطاقة الحافز المالي للخدمة + الدعم المتوقع مقابل المصروف فعلياً
   (function(){
-    const inc=incentiveOf(r.serviceId);
+    const inc=incentiveFor(r);
     if(!inc) return;   // الدعم الاستثنائي: بلا بطاقة حافز
-    const c=calcIncentive(r.serviceId, r.priceOffer||r.amount);
+    const c=calcIncentiveFor(r, r.priceOffer||r.amount);
     const paid=parseFloat(r.disbursed)||0;
     html+=`<div style="background:linear-gradient(135deg,var(--primary-light),transparent);border-right:4px solid var(--primary);border-radius:12px;padding:12px 14px;margin-top:8px">
       <div style="font-weight:800;color:var(--primary);font-size:.88rem;margin-bottom:8px">💰 الحافز المالي للخدمة</div>
@@ -4002,7 +4080,7 @@ function viewDetail(id){
     let btns="";
     // تعديل الطلب — متاح لكل الطلبات للأدمن/المراجع مع مراعاة الـworkflow
     // (يُمنع التعديل بعد الرفض؛ ويُسمح في باقي المراحل)
-    if(r.status!=="rejected"){
+    if(!isClosed(r)){
       const editFn = (r.serviceId==="exceptional") ? "editExceptional" : "editRequest";
       // تعديل المبالغ فقط (الأسرع والأكثر استخداماً) ثم تعديل الطلب كاملاً
       btns+=`<button class="btn btn-primary" onclick="closeDetail();openAmountsModal('${r.id}')">💵 تعديل المبالغ</button>`;
@@ -4011,7 +4089,7 @@ function viewDetail(id){
     if(next){
       btns+=`<button class="btn btn-primary" onclick="advanceStatus('${r.id}');closeDetail()">▶ ${STATUS_MAP[next].label}</button>`;
     }
-    if(r.status!=="disbursed"&&r.status!=="rejected"){
+    if(r.status!=="disbursed"&&!isClosed(r)){
       btns+=`<button class="btn btn-primary" style="background:#9a7414" onclick="closeDetail();rejectRequest('${r.id}')">✋ معالجة يدوية</button>`;
     }
     // إعادة لاستكمال النواقص (في مرحلة تحت الدراسة فقط)
@@ -4020,7 +4098,7 @@ function viewDetail(id){
     }
     btns+=`<button class="btn btn-ghost" onclick="aiEvaluate('${r.id}')">🤖 تقييم ذكي</button>`;
     // تعديل/إضافة رقم الطلب في الصادرات للطلبات التي تجاوزت مرحلة الإرسال
-    if(r.status!=="submitted"&&r.status!=="rejected"){
+    if(r.status!=="submitted"&&!isClosed(r)){
       btns+=`<button class="btn btn-ghost" onclick="closeDetail();showMinistryModal('${r.id}')">🏛️ ${r.ministryRef?"تعديل":"إضافة"} رقم الصادرات</button>`;
     }
     btns+=`<button class="btn btn-ghost" onclick="printRequestReport('${r.id}')">📄 تقرير</button>`;
@@ -4032,8 +4110,11 @@ function viewDetail(id){
   document.getElementById("detailOverlay").classList.add("show");
 }
 function stageTrackerHTML(status){
-  if(status==="rejected"){
+  if(status==="manual"){
     return `<div style="margin-top:20px;padding:18px;background:#fcefcf;border-radius:14px;text-align:center;color:#9a7414;font-weight:700;font-size:1rem">✋ هذا الطلب تتم معالجته يدوياً</div>`;
+  }
+  if(status==="rejected"){
+    return `<div style="margin-top:20px;padding:18px;background:#fee2e2;border-radius:14px;text-align:center;color:#b91c1c;font-weight:700;font-size:1rem">❌ تم رفض طلب الحافز</div>`;
   }
   const curStep=(STATUS_MAP[status]||{}).step||1;
   const totalSteps=STATUS_FLOW.length;
@@ -4311,7 +4392,7 @@ function renderFinancialTab(){
     {ic:"💰",l:"إجمالي المبالغ المصروفة",v:fmtNum(totalAmt)+" ﷼",s:disbursed.length+" طلب مصروف"},
     {ic:"📊",l:"متوسط المبلغ لكل طلب",v:fmtNum(Math.round(avgAmt))+" ﷼",s:"من الطلبات المصروفة"},
     {ic:"🏆",l:"أعلى مبلغ مصروف",v:fmtNum(maxAmt)+" ﷼",s:"طلب واحد"},
-    {ic:"📋",l:"الطلبات قيد المعالجة",v:all.filter(r=>r.status!=="disbursed"&&r.status!=="rejected").length,s:"بانتظار القرار"},
+    {ic:"📋",l:"الطلبات قيد المعالجة",v:all.filter(r=>r.status!=="disbursed"&&!isClosed(r)).length,s:"بانتظار القرار"},
   ].map(k=>`<div class="kpi-card"><div class="kpi-ic">${k.ic}</div><div class="kpi-val">${k.v}</div><div class="kpi-lbl">${k.l}</div><div style="font-size:.75rem;color:var(--text-soft);margin-top:4px">${k.s}</div></div>`).join("");
 
   // مخططات مالية
@@ -4356,7 +4437,8 @@ function renderPerformanceTab(){
   const total=all.length;
   const disbursed=all.filter(r=>r.status==="disbursed").length;
   const rejected=all.filter(r=>r.status==="rejected").length;
-  const pending=total-disbursed-rejected;
+  const manual=all.filter(r=>r.status==="manual").length;
+  const pending=total-disbursed-rejected-manual;
   const approvalRate=total?Math.round(disbursed/total*100):0;
 
   // حساب متوسط وقت المعالجة
@@ -4369,7 +4451,7 @@ function renderPerformanceTab(){
   // الطلبات المتأخرة (أكثر من 30 يوم بحالة قيد المعالجة)
   const now=new Date();
   const delayed=all.filter(r=>{
-    if(r.status==="disbursed"||r.status==="rejected") return false;
+    if(r.status==="disbursed"||isClosed(r)) return false;
     const d=new Date(r.date||"");
     return !isNaN(d)&&(now-d)/(1000*60*60*24)>30;
   });
@@ -4397,7 +4479,7 @@ function renderPerformanceTab(){
   drawAmtChart("chartAvgTime",avgBySvc,"يوم");
 
   // نسبة الموافقة والرفض
-  drawBarChart("chartApproval",{"مصروف":disbursed,"قيد المعالجة":pending,"مرفوض":rejected},"");
+  drawBarChart("chartApproval",{"مصروف":disbursed,"قيد المعالجة":pending,"يدوي":manual,"مرفوض":rejected},"");
 
   // معدل التحويل حسب الخدمة
   const convData={};
@@ -4447,7 +4529,7 @@ function renderMyReportTab(){
   if(mk) mk.innerHTML=[
     {ic:"📑",l:"إجمالي طلباتي",v:myReqs.length,s:"كل الحالات"},
     {ic:"✅",l:"تم صرفها",v:disbursed.length,s:"طلب مصروف"},
-    {ic:"⏳",l:"قيد المعالجة",v:myReqs.filter(r=>r.status!=="disbursed"&&r.status!=="rejected").length,s:"بانتظار"},
+    {ic:"⏳",l:"قيد المعالجة",v:myReqs.filter(r=>r.status!=="disbursed"&&!isClosed(r)).length,s:"بانتظار"},
     {ic:"💰",l:"إجمالي ما صُرف لي",v:fmtNum(totalAmt)+" ﷼",s:"من كل طلباتي"},
   ].map(k=>`<div class="kpi-card"><div class="kpi-ic">${k.ic}</div><div class="kpi-val">${k.v}</div><div class="kpi-lbl">${k.l}</div><div style="font-size:.75rem;color:var(--text-soft);margin-top:4px">${k.s}</div></div>`).join("");
 
@@ -4597,6 +4679,7 @@ function printReport(type){
     title="تقرير الأداء وأزمنة المعالجة";
     const disbursed=all.filter(r=>r.status==="disbursed").length;
     const rejected=all.filter(r=>r.status==="rejected").length;
+    const manual=all.filter(r=>r.status==="manual").length;
     const rate=all.length?Math.round(disbursed/all.length*100):0;
     const durs=computeDurations();
     const days=durs.map(d=>d.days);
@@ -4622,7 +4705,7 @@ function printReport(type){
       <div class="kpis">
         <div class="kpi"><div class="v">${myReqs.length}</div><div class="l">إجمالي طلباتي</div></div>
         <div class="kpi"><div class="v">${disbursed.length}</div><div class="l">تم صرفها</div></div>
-        <div class="kpi"><div class="v">${myReqs.filter(r=>r.status!=="disbursed"&&r.status!=="rejected").length}</div><div class="l">قيد المعالجة</div></div>
+        <div class="kpi"><div class="v">${myReqs.filter(r=>r.status!=="disbursed"&&!isClosed(r)).length}</div><div class="l">قيد المعالجة</div></div>
         <div class="kpi"><div class="v" style="font-size:1.3rem">${fmtNum(totalAmt)} ﷼</div><div class="l">إجمالي ما صُرف</div></div>
       </div>
       <h2>سجل طلباتي</h2>
@@ -5048,7 +5131,7 @@ function renderDashboard(){
   const sumBy=(list,fn)=>list.reduce((s,r)=>s+fn(r),0);
 
   // المرفوضة لا تُحتسب في أي مبلغ
-  const notRejected=all.filter(r=>r.status!=="rejected");
+  const notRejected=all.filter(r=>!isClosed(r));
   const exportsList=notRejected.filter(isExports), excList=notRejected.filter(isExceptional), hrdfList=notRejected.filter(isHRDF);
   // كل البطاقات: مبلغ الصرف الفعلي (المصروف)
   const disbAmt=r=>parseFloat(r.disbursed)||0;
@@ -5090,11 +5173,11 @@ function renderDashboard(){
 }
 
 
-/* قيمة الطلب الموحّدة للمبالغ (استثنائي=الصرف، غيره=عرض السعر)، بدون المرفوضة */
+/* قيمة الطلب الموحّدة للمبالغ = المبلغ المصروف فعلياً (صف M)، بدون المرفوضة/اليدوية.
+   كل لوحات الداشبورد (النمو، حسب النوع، الجهات) تعكس الصرف الفعلي فقط. */
 function reqVal(r){
-  if(r.status==="rejected") return 0;
-  const isExc=r.serviceId==="exceptional"||/استثنائي|التحول الرقمي/.test(r.serviceName||"");
-  return isExc ? (parseFloat(r.disbursed)||0) : (parseFloat(r.priceOffer)||parseFloat(r.amount)||0);
+  if(isClosed(r)) return 0;
+  return parseFloat(r.disbursed)||0;
 }
 
 /* المبالغ حسب نوع الحافز (أشرطة أفقية) */
@@ -5148,7 +5231,7 @@ function renderDashSupport(all,disb,stype){
   const el=document.getElementById("dashSupport");
   if(!el) return;
   const m={};
-  all.filter(r=>r.status!=="rejected").forEach(r=>{
+  all.filter(r=>!isClosed(r)).forEach(r=>{
     const f=(r.supportType||"").toString().trim();   // عمود F (نوع الدعم)
     const j=(r.entityName||"").toString().trim();     // عمود J (اسم المعرض/الجهة)
     let k;
@@ -5205,11 +5288,12 @@ const DASH_STATUS_COLORS = {
   review:      "#8b5cf6",
   returned:    "#f97316",
   disbursed:   "#10b981",
-  rejected:    "#b45309"
+  manual:      "#b45309",
+  rejected:    "#dc2626"
 };
 
 function renderDashStatus(all){
-  const order=["submitted","preliminary","review","returned","disbursed","rejected"];
+  const order=["submitted","preliminary","review","returned","disbursed","manual","rejected"];
   const counts={}; all.forEach(r=>{counts[r.status]=(counts[r.status]||0)+1;});
   const total=all.length;
   const el=document.getElementById("dashStatus");
@@ -5305,7 +5389,7 @@ function dashDrill(type,encKey){
   const all=STATE.requests||[];
   let list=[], title=key;
   if(type==="service"){ list=all.filter(r=>(r.serviceName||"")===key); title="الخدمة: "+key; }
-  else if(type==="entity"){ list=all.filter(r=>r.status!=="rejected"&&supportKey(r)===key); title="الجهة الداعمة: "+key; }
+  else if(type==="entity"){ list=all.filter(r=>!isClosed(r)&&supportKey(r)===key); title="الجهة الداعمة: "+key; }
   else if(type==="year"){ list=all.filter(r=>(r.date||"").toString().substring(0,4)===key); title="سنة "+key; }
   // فترة: سنة (2026) أو شهر (2026-01) حسب وضع المنحنى
   else if(type==="period"){ const n=key.length; list=all.filter(r=>(r.date||"").toString().substring(0,n)===key); title=(n===4?"سنة ":"شهر ")+key; }
@@ -5313,10 +5397,10 @@ function dashDrill(type,encKey){
   else if(type==="statusLabel"){ list=all.filter(r=>((STATUS_MAP[r.status]||STATUS_MAP.submitted).label)===key); title="الحالة: "+key; }
   else if(type==="country"){ list=all.filter(r=>(r.country||"-")===key); title="الدولة: "+key; }
   else if(type==="company"){ list=all.filter(r=>(((r.fields&&r.fields.company)||r.company||"-"))===key); title="الشركة: "+key; }
-  else if(type==="exports"){ list=all.filter(r=>r.status!=="rejected"&&/تنمية الصادرات/.test(reqEntity(r))); title="طلبات الصادرات"; }
-  else if(type==="hrdf"){ list=all.filter(r=>r.status!=="rejected"&&/HRDF/.test(reqEntity(r))); title="طلبات دعم HRDF"; }
-  else if(type==="exceptional"){ list=all.filter(r=>r.status!=="rejected"&&!/تنمية الصادرات/.test(reqEntity(r))&&!/HRDF/.test(reqEntity(r))); title="الدعم الاستثنائي"; }
-  else if(type==="all"){ list=all.filter(r=>r.status!=="rejected"); title="جميع المبالغ"; }
+  else if(type==="exports"){ list=all.filter(r=>!isClosed(r)&&/تنمية الصادرات/.test(reqEntity(r))); title="طلبات الصادرات"; }
+  else if(type==="hrdf"){ list=all.filter(r=>!isClosed(r)&&/HRDF/.test(reqEntity(r))); title="طلبات دعم HRDF"; }
+  else if(type==="exceptional"){ list=all.filter(r=>!isClosed(r)&&!/تنمية الصادرات/.test(reqEntity(r))&&!/HRDF/.test(reqEntity(r))); title="الدعم الاستثنائي"; }
+  else if(type==="all"){ list=all.filter(r=>!isClosed(r)); title="جميع المبالغ"; }
   openDashDrill(title, list);
 }
 
@@ -5459,6 +5543,7 @@ function aiReportSummary(){
   const approved=all.filter(r=>r.status==="disbursed");
   const pending=all.filter(r=>r.status==="submitted"||r.status==="preliminary"||r.status==="review").length;
   const rejected=all.filter(r=>r.status==="rejected").length;
+  const manual=all.filter(r=>r.status==="manual").length;
   const total=all.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
   const approvedAmt=approved.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
   const byService={}; all.forEach(r=>{byService[r.serviceName]=(byService[r.serviceName]||0)+1;});
@@ -5668,6 +5753,7 @@ function printFullReport(){
   const total=all.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
   const approved=all.filter(r=>r.status==="disbursed");
   const rejected=all.filter(r=>r.status==="rejected").length;
+  const manual=all.filter(r=>r.status==="manual").length;
   const pending=all.filter(r=>r.status==="submitted"||r.status==="preliminary"||r.status==="review").length;
   const approvedAmt=approved.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
   const rate=all.length?Math.round(approved.length/all.length*100):0;
@@ -5711,7 +5797,7 @@ function printFullReport(){
     <div class="kpi"><div class="v">${all.length}</div><div class="l">إجمالي الطلبات</div></div>
     <div class="kpi"><div class="v">${approved.length}</div><div class="l">معتمدة</div></div>
     <div class="kpi"><div class="v">${pending}</div><div class="l">قيد المراجعة</div></div>
-    <div class="kpi"><div class="v">${rejected}</div><div class="l">معالجة يدوية</div></div>
+    <div class="kpi"><div class="v">${manual}</div><div class="l">معالجة يدوية</div></div>
   </div>
   <div class="kpis">
     <div class="kpi"><div class="v" style="font-size:1.3rem">${fmtMoney(total)}</div><div class="l">إجمالي المبالغ المطلوبة</div></div>
