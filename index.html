@@ -2179,7 +2179,7 @@ const STATUS_MAP = {
 /* الحالات المُنهية (لا تُحتسب ضمن المبالغ أو قيد المعالجة) */
 function isClosed(r){ return r.status==="rejected"||r.status==="manual"; }
 /* سياسة بحرة: لا يوجد "رفض" للمستفيد — أي طلب مرفوض/ملغي يُعرض كـ"تتم معالجته يدوياً" */
-function coerceStatuses(){ (STATE.requests||[]).forEach(r=>{ if(r.status==="rejected") r.status="manual"; }); }
+function coerceStatuses(){ (STATE.requests||[]).forEach(r=>{ if(r.status==="rejected") r.status="manual"; }); normalizeIds(STATE.requests||[]); }
 // تسلسل المراحل (بدون الرفض)
 const STATUS_FLOW = ["submitted","preliminary","review","disbursed"];
 // الحالة الافتراضية للطلب الجديد
@@ -3090,7 +3090,7 @@ function closeForm(){document.getElementById("formOverlay").classList.remove("sh
 // تعديل طلب دعم استثنائي موجود
 // تعديل أي طلب (لكل الخدمات) — للأدمن والمراجع
 function editRequest(reqId){
-  const r=STATE.requests.find(x=>x.id===reqId); if(!r)return;
+  const r=findReq(reqId); if(!r)return;
   const svcId=r.serviceId||"exceptional";
   const svc=SERVICES.find(x=>x.id===svcId);
   if(!svc){ toast("نوع الخدمة غير معروف","err"); return; }
@@ -3133,7 +3133,7 @@ function editRequest(reqId){
 }
 
 function editExceptional(reqId){
-  const r=STATE.requests.find(x=>x.id===reqId); if(!r)return;
+  const r=findReq(reqId); if(!r)return;
   openForm("exceptional");
   STATE._editingReqId=reqId;  // نعلّم إننا في وضع تعديل
   document.getElementById("formTitle").textContent="✏️ تعديل: "+r.serviceName;
@@ -3258,7 +3258,7 @@ function submitForm(){
 
   // ═══ وضع التعديل: تحديث طلب موجود ═══
   if(STATE._editingReqId){
-    const r=STATE.requests.find(x=>x.id===STATE._editingReqId);
+    const r=findReq(STATE._editingReqId);
     if(r){
       // نكتب فقط القيم غير الفارغة فوق القديمة (نحافظ على ما لم يُعدّل)
       const cleanData={};
@@ -3299,6 +3299,7 @@ function submitForm(){
   const req={
     id:"REQ-"+Date.now(),
     refNo:internalRef,
+    _unsynced:true, _ctime:Date.now(),
     serviceId:s.id, serviceName:s.name, code:s.code,
     applicant:STATE.user, company:company,
     country:data.target_country||"-",
@@ -3608,7 +3609,7 @@ function nextStageShort(stage){
   return m[stage]||"التالي";
 }
 function advanceStatus(id){
-  const r=STATE.requests.find(x=>x.id===id); if(!r)return;
+  const r=findReq(id); if(!r)return;
   const next=getNextStage(r.status); if(!next)return;
   // عند الانتقال من "تم الإرسال" إلى "قبول مبدئي" = الرفع للوزارة → اطلب رقم الوزارة
   if(r.status==="submitted" && next==="preliminary"){
@@ -3653,7 +3654,7 @@ function celebrate(){
 let _ministryId=null;
 function showMinistryModal(id){
   _ministryId=id;
-  const r=STATE.requests.find(x=>x.id===id);
+  const r=findReq(id);
   document.getElementById("ministryRefInput").value=(r&&r.ministryRef)||"";
   document.getElementById("ministryReqRef").textContent=(r&&r.refNo)||"";
   document.getElementById("ministryOverlay").classList.add("show");
@@ -3665,7 +3666,7 @@ function closeMinistryModal(){
 }
 function confirmMinistry(){
   if(!_ministryId)return;
-  const r=STATE.requests.find(x=>x.id===_ministryId); if(!r)return;
+  const r=findReq(_ministryId); if(!r)return;
   const mref=document.getElementById("ministryRefInput").value.trim();
   if(!mref){ toast("الرجاء إدخال رقم الطلب في الصادرات","err"); return; }
   r.ministryRef=mref;
@@ -3683,7 +3684,7 @@ function confirmMinistry(){
 /* ===== تعديل المبالغ فقط (بدون المساس بباقي بيانات الطلب) ===== */
 let _amtId=null;
 function openAmountsModal(id){
-  const r=STATE.requests.find(x=>x.id===id); if(!r){ toast("الطلب غير موجود","err"); return; }
+  const r=findReq(id); if(!r){ toast("الطلب غير موجود","err"); return; }
   _amtId=id;
   document.getElementById("amtReqRef").textContent=r.refNo||"—";
   document.getElementById("amtReqSvc").textContent=r.serviceName||"";
@@ -3700,7 +3701,7 @@ function closeAmountsModal(){ document.getElementById("amountsOverlay").classLis
 /* معاينة الدعم المتوقع والفرق أثناء التعديل */
 function updateAmtPreview(){
   const box=document.getElementById("amtPreview"); if(!box||!_amtId) return;
-  const r=STATE.requests.find(x=>x.id===_amtId); if(!r){ box.style.display="none"; return; }
+  const r=findReq(_amtId); if(!r){ box.style.display="none"; return; }
   const c=calcIncentiveFor(r, document.getElementById("amtPrice").value);
   if(!c){ box.style.display="none"; return; }
   const paid=parseFloat(document.getElementById("amtDisb").value)||0;
@@ -3712,7 +3713,7 @@ function updateAmtPreview(){
 }
 function saveAmounts(){
   if(!_amtId) return;
-  const r=STATE.requests.find(x=>x.id===_amtId); if(!r) return;
+  const r=findReq(_amtId); if(!r) return;
   const price=document.getElementById("amtPrice").value.trim();
   const claim=document.getElementById("amtClaim").value.trim();
   const disb =document.getElementById("amtDisb").value.trim();
@@ -3736,7 +3737,7 @@ function saveAmounts(){
 }
 
 function addRequestNote(id){
-  const r=STATE.requests.find(x=>x.id===id); if(!r)return;
+  const r=findReq(id); if(!r)return;
   const ta=document.getElementById("newReqNote");
   const text=(ta&&ta.value||"").trim();
   if(!text){ toast("اكتب الملاحظة أولاً","err"); return; }
@@ -3750,7 +3751,7 @@ function addRequestNote(id){
   viewDetail(id); // إعادة عرض التفاصيل محدّثة
 }
 function rejectRequest(id){
-  const r=STATE.requests.find(x=>x.id===id); if(!r)return;
+  const r=findReq(id); if(!r)return;
   if(r.status==="disbursed"){ toast("لا يمكن تحويل طلب تم صرفه","err"); return; }
   showRejectModal(id);
 }
@@ -3766,7 +3767,7 @@ function closeRejectModal(){
 }
 function confirmReject(){
   if(!_rejectId)return;
-  const r=STATE.requests.find(x=>x.id===_rejectId); if(!r)return;
+  const r=findReq(_rejectId); if(!r)return;
   r.status="manual";
   r.reviewer=STATE.user;
   r.note=document.getElementById("rejectReason").value.trim();
@@ -3776,7 +3777,7 @@ function confirmReject(){
   toast("تم تحويل الطلب للمعالجة اليدوية","ok");
 }
 function setStatus(id,status){
-  const r=STATE.requests.find(x=>x.id===id); if(!r)return;
+  const r=findReq(id); if(!r)return;
   const wasDisbursed=r.status==="disbursed";
   r.status=status;
   r.reviewer=STATE.user;
@@ -3788,7 +3789,7 @@ function setStatus(id,status){
 /* ===== إعادة الطلب لاستكمال النواقص (المدقق) ===== */
 let _returnId=null;
 function returnForCompletion(id){
-  const r=STATE.requests.find(x=>x.id===id); if(!r)return;
+  const r=findReq(id); if(!r)return;
   if(r.status!=="review"){ toast("الإعادة متاحة فقط في مرحلة الدراسة","err"); return; }
   _returnId=id;
   document.getElementById("returnReason").value="";
@@ -3801,7 +3802,7 @@ function closeReturnModal(){
 }
 function confirmReturn(){
   if(!_returnId)return;
-  const r=STATE.requests.find(x=>x.id===_returnId); if(!r)return;
+  const r=findReq(_returnId); if(!r)return;
   const reason=document.getElementById("returnReason").value.trim();
   if(!reason){ toast("الرجاء كتابة النواقص المطلوبة","err"); return; }
   r.status="returned";
@@ -3884,7 +3885,7 @@ function buildCompletionDocs(){
 }
 
 function openCompleteModal(id){
-  const r=STATE.requests.find(x=>x.id===id); if(!r)return;
+  const r=findReq(id); if(!r)return;
   if(r.status!=="preliminary"&&r.status!=="returned"){ toast("الطلب ليس في مرحلة الاستكمال","err"); return; }
   _completeId=id; _completeFiles={};
   _completeServiceId=r.serviceId||null;
@@ -3916,7 +3917,7 @@ function onCompleteDocFile(docKey){
 function submitCompletion(){
   if(!_completeId)return;
   if(STATE._submitting){ toast("⏳ جاري رفع الاستكمال السابق...","err"); return; }
-  const r=STATE.requests.find(x=>x.id===_completeId); if(!r)return;
+  const r=findReq(_completeId); if(!r)return;
   const comment=document.getElementById("completeComment").value.trim();
   // التحقق: كل المستندات الخمسة إجبارية
   const missing=COMPLETION_DOCS.filter(d=>!_completeFiles[d.k]);
@@ -4021,7 +4022,7 @@ function fixFileUrl(u){
   return url;
 }
 function viewDetail(id){
-  const r=STATE.requests.find(x=>x.id===id); if(!r)return;
+  const r=findReq(id); if(!r)return;
   const s=SERVICES.find(x=>x.id===r.serviceId);
   document.getElementById("detailTitle").textContent=r.serviceName;
   document.getElementById("detailSub").textContent="رقم الطلب: "+r.refNo;
@@ -5142,7 +5143,7 @@ function openDashboard(){
       jsonp("list",{},(res)=>{
         inFlight=false;
         if(res&&res.ok&&res.data){
-          STATE.requests=res.data; coerceStatuses(); saveRequests();
+          mergeSheet(res.data); saveRequests(); _lastFetch=Date.now();
           renderDashboard();
         }
       });
@@ -5514,7 +5515,7 @@ function renderDashYearChart(all){
    ميزات الذكاء الاصطناعي
    ============================================================ */
 function aiEvaluate(id){
-  const r=STATE.requests.find(x=>x.id===id); if(!r)return;
+  const r=findReq(id); if(!r)return;
   openAiModal("🤖 تقييم ذكي للطلب","جاري التحليل بالذكاء الاصطناعي...");
   aiCall("evaluate",{request:aiSafeReq(r)},(res)=>{
     if(!res||!res.ok){
@@ -5748,7 +5749,7 @@ function printMyReport(){
 }
 
 function printRequestReport(id){
-  const r=STATE.requests.find(x=>x.id===id); if(!r)return;
+  const r=findReq(id); if(!r)return;
   const s=SERVICES.find(x=>x.id===r.serviceId);
   const st=STATUS_MAP[r.status]||STATUS_MAP.submitted;
   let rows="";
@@ -5931,10 +5932,12 @@ function aiCall(task, data, cb){
 function pushToSheet(req){
   console.log("⏳ إرسال الطلب للشيت:", req.refNo);
   // نستخدم POST (بدل GET) لأن الطلب قد يكون كبيراً ويتجاوز حد طول الرابط
-  postJSON("add",req,(res)=>{
+  const clean=Object.assign({},req); delete clean._unsynced; delete clean._ctime; delete clean._mtime; delete clean._sig; delete clean._srvId;
+  postJSON("add",clean,(res)=>{
     console.log("📩 رد الشيت:", res);
     if(res&&res.ok){
       console.log("✅ تم الحفظ في الشيت:", req.refNo);
+      req._unsynced=false; saveRequests(); scheduleRefresh(1500);
     }else{
       console.error("❌ فشل حفظ الطلب:", res);
       toast("⚠️ لم يُحفظ الطلب في الشيت: "+((res&&res.error)||"لا يوجد رد"),"err");
@@ -5942,8 +5945,9 @@ function pushToSheet(req){
   });
 }
 function editInSheet(req){
+  markLocalEdit(req); saveRequests(); refreshViews();
   // يعدّل الصف الموجود بالرقم الداخلي بدل إضافة صف جديد
-  jsonp("editRequest",{
+  sheetWrite("editRequest",{
     refNo:req.refNo,
     company:req.company,
     supportType:(req.fields&&(req.fields.supporting_entity||req.fields.support_type))||req.supportType||"",
@@ -5952,32 +5956,117 @@ function editInSheet(req){
     claimAmount:req.claimAmount||"",
     disbursed:req.disbursed||"",
     fields:req.fields||{}
-  },(res)=>{ if(!(res&&res.ok)) toast("⚠️ لم يُحفظ التعديل في الشيت: "+((res&&res.error)||"لا يوجد رد"),"err"); });
+  },(res)=>{
+    if(!(res&&res.ok)){ toast("⚠️ لم يُحفظ التعديل في الشيت: "+((res&&res.error)||"لا يوجد رد"),"err"); req._mtime=0; }
+    scheduleRefresh();
+  });
 }
 function updateSheetStatus(req){
-  jsonp("updateStatus",{
-    id:req.id, refNo:req.refNo, status:req.status, note:req.note,
+  markLocalEdit(req); saveRequests(); refreshViews();
+  sheetWrite("updateStatus",{
+    id:(req._srvId!==undefined&&req._srvId!=="")?req._srvId:req.id, refNo:req.refNo, status:req.status, note:req.note,
     ministryRef:req.ministryRef||"",
     reviewer:STATE.user||"",           // اسم المراجع الذي حرّك الطلب
     completion:req.completion||null    // نرسل مستندات الاستكمال للشيت
-  },(res)=>{ if(!(res&&res.ok)) toast("⚠️ لم تُحفظ الحالة في الشيت: "+((res&&res.error)||"لا يوجد رد"),"err"); });
-}
-function fetchFromSheet(){
-  jsonp("list",{},(res)=>{
-    if(res&&res.ok&&Array.isArray(res.data)){
-      // الشيت هو المرجع: نأخذ نسخته لكل طلب، ونُبقي فقط الطلبات المحلية التي لم تصل للشيت بعد
-      const inSheet=new Set(res.data.map(x=>x.refNo));
-      const localOnly=STATE.requests.filter(r=>r.refNo&&!inSheet.has(r.refNo));
-      STATE.requests=localOnly.concat(res.data);
-      coerceStatuses();
-      saveRequests();
-      if(document.getElementById("page-myrequests").classList.contains("active"))renderMyRequests();
-      if(STATE.user){ try{ renderHomeKpis(); }catch(e){} }
-      if(STATE.role==="admin"||STATE.role==="reviewer"){ const a=document.getElementById("page-admin"); if(a&&a.classList.contains("active"))renderAdminTable(); }
-      if(typeof updatePendingBadge==="function") updatePendingBadge();
-    }
+  },(res)=>{
+    if(!(res&&res.ok)){ toast("⚠️ لم تُحفظ الحالة في الشيت: "+((res&&res.error)||"لا يوجد رد"),"err"); req._mtime=0; }
+    scheduleRefresh();
   });
 }
+/* ═══════════ محرك المزامنة مع الشيت ═══════════
+   - الشيت هو المرجع الوحيد؛ النسخة المحلية مجرد كاش للعرض السريع.
+   - أي تعديل محلي (قبول/صرف/مبالغ...) يُحمى مؤقتاً حتى يظهر في الشيت، فلا يرجع للقيمة القديمة.
+   - تحديث تلقائي دوري وعند الرجوع للتبويب — لا حاجة لتسجيل الخروج لرؤية التغييرات. */
+const LOCAL_HOLD_MS=120000;   // مدة حماية التعديل المحلي (دقيقتان)
+function findReq(id){
+  const k=String(id==null?"":id);
+  return (STATE.requests||[]).find(x=>String(x.id)===k) || (STATE.requests||[]).find(x=>x.refNo&&x.refNo===k) || null;
+}
+/* معرّفات فريدة دائماً (صفوف الشيت المستوردة قد تكون بلا id أو بمعرّف مكرر → كانت الأزرار تعدّل طلباً آخر أو لا شيء) */
+function normalizeIds(list){
+  const seen=new Set();
+  list.forEach((r,i)=>{
+    if(r._srvId===undefined) r._srvId=(r.id==null?"":r.id);
+    let id=String(r.id==null?"":r.id).trim();
+    if(!id||seen.has(id)) id="R-"+(r.refNo||"x")+"-"+i;
+    while(seen.has(id)) id+="_";
+    r.id=id; seen.add(id);
+  });
+  return list;
+}
+/* بصمة الحقول التي يغيّرها المراجع — لمعرفة هل وصل التعديل للشيت */
+function reqSig(r){ return [r.status,r.ministryRef||"",parseFloat(r.disbursed)||0,parseFloat(r.claimAmount)||0,parseFloat(r.priceOffer||r.amount)||0,r.note||""].join("|"); }
+function markLocalEdit(r){ if(r){ r._mtime=Date.now(); r._sig=reqSig(r); } }
+function mergeSheet(data){
+  const now=Date.now();
+  const sheet=data.slice();
+  coerceList(sheet);
+  // المطابقة بالرقم الداخلي أولاً؛ وبالمعرّف فقط إن كان فريداً (المعرّفات المكررة كانت تخلط الطلبات)
+  const byRef={}, byId={}, idCount={};
+  sheet.forEach(x=>{ const k=String(x.id==null?"":x.id); if(k) idCount[k]=(idCount[k]||0)+1; });
+  (STATE.requests||[]).forEach(r=>{
+    if(r.refNo) byRef[r.refNo]=r;
+    const k=String(r._srvId!==undefined?r._srvId:(r.id||""));
+    if(k&&!/^R-/.test(k)) byId[k]=(byId[k]===undefined?r:null);   // null = مكرر محلياً
+  });
+  const used=new Set();
+  const out=sheet.map(srv=>{
+    const k=String(srv.id==null?"":srv.id);
+    let loc=(srv.refNo&&byRef[srv.refNo]) || null;
+    if(!loc && k && idCount[k]===1 && byId[k]) loc=byId[k];
+    if(loc&&used.has(loc)) loc=null;
+    if(loc) used.add(loc);
+    // تعديل محلي حديث لم يظهر بعد في الشيت → نُبقي النسخة المحلية
+    if(loc && loc._mtime && now-loc._mtime<LOCAL_HOLD_MS && reqSig(srv)!==loc._sig) return loc;
+    return srv;
+  });
+  // طلبات جديدة أُنشئت هنا ولم تصل للشيت بعد (لا شيء غيرها — الطلبات "الشبحية" القديمة تُحذف)
+  (STATE.requests||[]).forEach(r=>{
+    if(!used.has(r) && r._unsynced && now-(r._ctime||0)<10*60000) out.unshift(r);
+  });
+  STATE.requests=normalizeIds(out);
+}
+function coerceList(list){ list.forEach(r=>{ if(r.status==="rejected") r.status="manual"; }); }
+/* إعادة رسم كل ما هو ظاهر الآن (أي صفحة + الداشبورد + العدادات) */
+function refreshViews(){
+  try{
+    const act=document.querySelector(".page.active"); const pid=act?act.id.replace("page-",""):"";
+    if(pid==="myrequests") renderMyRequests();
+    if(pid==="admin"){ renderAdminTable(); renderAdminKpis(); }
+    if(pid==="reports") renderReports();
+    if(STATE.user) renderHomeKpis();
+    updatePendingBadge();
+    const ds=document.getElementById("dashboardScreen"); if(ds&&ds.classList.contains("show")) renderDashboard();
+  }catch(e){ console.error(e); }
+}
+let _fetching=false, _fetchAgain=false, _lastFetch=0;
+function fetchFromSheet(done){
+  if(SHEET_API.includes("PUT_YOUR")){ if(done)done(); return; }
+  if(_fetching){ _fetchAgain=true; return; }
+  _fetching=true; _lastFetch=Date.now();
+  jsonp("list",{},(res)=>{
+    _fetching=false;
+    if(res&&res.ok&&Array.isArray(res.data)){
+      mergeSheet(res.data);
+      saveRequests();
+      refreshViews();
+    }
+    if(done) try{done(res);}catch(e){}
+    if(_fetchAgain){ _fetchAgain=false; setTimeout(fetchFromSheet,300); }
+  });
+}
+let _refreshT=null;
+function scheduleRefresh(ms){ clearTimeout(_refreshT); _refreshT=setTimeout(()=>fetchFromSheet(),ms||2500); }
+/* كتابة للشيت: POST أولاً (لا حد لطول البيانات)، وإن لم يدعمها الخادم نرجع لـ JSONP */
+function sheetWrite(action,payload,cb){
+  postJSON(action,payload,(res)=>{
+    if(res&&res.ok){ cb(res); return; }
+    jsonp(action,payload,cb);
+  });
+}
+// تحديث تلقائي: كل دقيقة، وعند الرجوع للتبويب
+setInterval(()=>{ if(STATE.user&&!document.hidden&&!_dashTimer) fetchFromSheet(); },60000);
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden&&STATE.user&&Date.now()-_lastFetch>15000) fetchFromSheet(); });
 
 /* إغلاق أي نافذة مفتوحة بمفتاح Esc (راحة الاستخدام) */
 document.addEventListener("keydown",function(e){
