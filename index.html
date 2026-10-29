@@ -1408,6 +1408,8 @@ tbody tr:hover td:last-child{background:var(--lav-50)!important}
   .page>.page-head:first-child:has(+ .kpi-grid){padding-bottom:70px!important}
   .page>.page-head:first-child + .kpi-grid{margin-top:-58px!important}
 }
+#dashDrill .dd-row.dd-click{cursor:pointer;border-radius:10px;transition:background .2s}
+#dashDrill .dd-row.dd-click:hover{background:var(--lav-50)}
 /* ── جدول مركز التحكم: خلايا مزدوجة (بدل 9 أعمدة) ── */
 .cell-2 b,.cell-2>span{display:block;font-weight:700;color:var(--text);line-height:1.4}
 .cell-2 small{display:block;color:var(--text-soft);font-size:.76rem;margin-top:2px;line-height:1.35}
@@ -2258,7 +2260,9 @@ const SERVICES = [
       {k:"start_date",l:"تاريخ بداية الاستفادة من الخدمة",t:"date",req:true},
       {k:"end_date",l:"تاريخ الانتهاء من الخدمة",t:"date",req:true},
       {k:"activities",l:"الأنشطة المشمولة",t:"checkboxes",req:true,opts:["الكل","رسوم التسجيل في المعارض الدولية","استئجار مساحة الجناح للشركة والخدمات التي تقدمها","إرسال عينات من إنتاج المعرض إلى المعرض","تصميم الجناح وبنائه"]},
-      {k:"desc",l:"وصف المعرض",t:"textarea",req:false}
+      {k:"desc",l:"وصف المعرض",t:"textarea",req:false},
+      {k:"doc_price",l:"مستندات عروض الأسعار",t:"file",req:true},
+      {k:"doc_extra",l:"مرفقات إضافية",t:"file",req:false}
     ]
   },
   {
@@ -5297,7 +5301,17 @@ function renderHomeKpis(){
   if(STATE.lang==="en") setTimeout(applyTranslation,0);
 }
 // الانتقال لسجل الطلبات مع فلتر حالة محدد
+/* بطاقات الرئيسية: تعرض طلبات الفئة المضغوطة فقط في نافذة منبثقة */
 function gotoRequests(filterType){
+  const isAdmin=STATE.role==="admin"||STATE.role==="reviewer";
+  const mine=isAdmin?(STATE.requests||[]):(STATE.requests||[]).filter(r=>r.applicant===STATE.user);
+  const PENDING=["submitted","preliminary","review","returned"];
+  let list=mine, title=isAdmin?"إجمالي الطلبات":"طلباتي";
+  if(filterType==="pending"){ list=mine.filter(r=>PENDING.includes(r.status)); title="الطلبات قيد المعالجة"; }
+  else if(filterType==="disbursed"){ list=mine.filter(r=>r.status==="disbursed"); title="الطلبات المصروفة"; }
+  openDashDrill(title, sortNewestFirst(list), true);
+}
+function gotoRequestsPage(filterType){
   const isAdmin=STATE.role==="admin"||STATE.role==="reviewer";
   const page=isAdmin?"admin":"myrequests";
   nav(page);
@@ -5759,26 +5773,26 @@ function dashDrill(type,encKey){
   openDashDrill(title, list);
 }
 
-function openDashDrill(title, list){
+function openDashDrill(title, list, clickable){
   document.getElementById("dashDrillTitle").textContent=title+" ("+list.length+")";
   const body=document.getElementById("dashDrillBody");
   if(!list.length){ body.innerHTML=`<div class="empty" style="padding:30px;text-align:center"><div class="ei">📭</div><p>لا توجد طلبات</p></div>`; }
   else{
     // ترتيب تنازلي بالمبلغ
-    const sorted=list.slice().sort((a,b)=>reqVal(b)-reqVal(a));
+    const sorted=clickable?list.slice():list.slice().sort((a,b)=>reqVal(b)-reqVal(a));
     const totalAmt=sorted.reduce((s,r)=>s+reqVal(r),0);
     const rows=sorted.map(r=>{
       const st=STATUS_MAP[r.status]||STATUS_MAP.submitted;
       const v=reqVal(r);
-      return `<div class="dd-row">
+      return `<div class="dd-row${clickable?" dd-click":""}"${clickable?` onclick="closeDashDrill();viewDetail(${jsArg(r.id)})" title="اضغط لعرض التفاصيل"`:""}>
         <div class="dd-main">
           <b>${esc(r.refNo||"-")} — ${esc(r.company||"-")}</b>
-          <span>${esc(r.serviceName||"")} · <span class="badge ${st.badge}" style="font-size:.68rem;padding:1px 7px">${st.label}</span></span>
+          <span>${esc(r.serviceName||"")} · ${clickable?stBadge(r):`<span class="badge ${st.badge}" style="font-size:.68rem;padding:1px 7px">${st.label}</span>`}</span>
         </div>
         <div class="dd-amt">${v>0?fmtNum(v)+" ر.س":""}</div>
       </div>`;
     }).join("");
-    body.innerHTML=`<div class="dd-sum"><span>عدد الطلبات: ${sorted.length}</span><span>الإجمالي: ${fmtNum(totalAmt)} ر.س</span></div>${rows}`;
+    body.innerHTML=`<div class="dd-sum"><span>عدد الطلبات: ${sorted.length}</span>${totalAmt>0?`<span>الإجمالي: ${fmtNum(totalAmt)} ر.س</span>`:""}</div>${rows}`;
   }
   document.getElementById("dashDrill").classList.add("show");
 }
