@@ -1410,6 +1410,15 @@ tbody tr:hover td:last-child{background:var(--lav-50)!important}
 }
 #dashDrill .dd-row.dd-click{cursor:pointer;border-radius:10px;transition:background .2s}
 #dashDrill .dd-row.dd-click:hover{background:var(--lav-50)}
+/* ── زر التحديث ── */
+.page>.page-head:first-child .refresh-btn{position:absolute;top:18px;left:20px;z-index:3}
+.refresh-btn{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:11px;cursor:pointer;font-family:inherit;font-weight:700;font-size:.85rem;
+  background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.3);transition:background .2s}
+.refresh-btn:hover{background:rgba(255,255,255,.24)}
+.refresh-btn .ico{width:1.1em;height:1.1em}
+.refresh-btn.spin{opacity:.85;pointer-events:none}
+.refresh-btn.spin .ico{animation:spin .8s linear infinite}
+@media (max-width:600px){.refresh-btn span{display:none}.page>.page-head:first-child .refresh-btn{top:12px;left:12px;padding:8px}}
 /* ── جدول مركز التحكم: خلايا مزدوجة (بدل 9 أعمدة) ── */
 .cell-2 b,.cell-2>span{display:block;font-weight:700;color:var(--text);line-height:1.4}
 .cell-2 small{display:block;color:var(--text-soft);font-size:.76rem;margin-top:2px;line-height:1.35}
@@ -2211,18 +2220,23 @@ const SERVICES = [
     desc:"تعويض المستفيد في تأمين الفرص التجارية الجديدة من خلال تغطية جزء من الرسوم ذات الصلة بالتعامل مع المشترين الدوليين.",
     icon:"🤝", code:"BVR",
     fields:[
+      // مطابق لنموذج بوابة الصادرات (بدون: مستخرج السجل التجاري، هوية مقدم الطلب، التفويض)
       {k:"company",l:"الشركة",t:"select",req:true,opts:COMPANIES},
-      {k:"buyer_name",l:"اسم المشتري المحتمل",t:"text",req:true},
       {k:"target_country",l:"دولة المشتري",t:"select",req:true,opts:COUNTRIES},
-      {k:"city",l:"المدينة",t:"text",req:true},
+      {k:"visit_type",l:"نوع الزيارة",t:"select",req:true,opts:["زيارة المستفيد للمشتري في بلده","زيارة المشتري للمستفيد في المملكة"]},
       {k:"price_offer",l:"مبلغ عرض السعر",t:"number",req:true},
-      {k:"currency",l:"نوع العملة",t:"select",req:true,opts:["ريال سعودي (SAR)","دولار أمريكي (USD)","يورو (EUR)","درهم إماراتي (AED)","جنيه مصري (EGP)","جنيه إسترليني (GBP)","أخرى"]},
-      {k:"expected_revenue",l:"الإيرادات الإضافية المتوقعة نتيجة الحصول على الحافز (ر.س)",t:"number",req:true},
+      {k:"currency",l:"العملة",t:"select",req:true,opts:["ريال سعودي (SAR)","دولار أمريكي (USD)","يورو (EUR)","درهم إماراتي (AED)","جنيه مصري (EGP)","جنيه إسترليني (GBP)","أخرى"]},
+      {k:"expected_revenue",l:"الإيرادات الإضافية المتوقعة نتيجة الحصول على الحافز",t:"number",req:true},
+      {k:"revenue_currency",l:"العملة",t:"select",req:true,opts:["ريال سعودي (SAR)","دولار أمريكي (USD)","يورو (EUR)","درهم إماراتي (AED)","جنيه مصري (EGP)","جنيه إسترليني (GBP)","أخرى"]},
+      {k:"beneficiary_1",l:"اسم المستفيد الأول",t:"text",req:true},
+      {k:"beneficiary_2",l:"اسم المستفيد الثاني",t:"text",req:true},
       {k:"start_date",l:"تاريخ بداية الاستفادة من الخدمة",t:"date",req:true},
       {k:"end_date",l:"تاريخ الانتهاء من الخدمة",t:"date",req:true},
-      {k:"activities",l:"الأنشطة المشمولة",t:"checkboxes",req:true,opts:["الكل","تذاكر السفر","الإقامة والتنقل","الفعاليات","البيانات ذات الصلة"]},
-      {k:"desc",l:"الوصف",t:"textarea",req:false},
+      {k:"desc",l:"الهدف من الزيارة",t:"textarea",req:true,max:4000},
+      {k:"activities",l:"الأنشطة المشمولة",t:"checkboxes",req:true,opts:["الكل","تذاكر السفر (التذاكر الدولية فقط من الدرجة الاقتصادية ذهابًا وإيابًا).","المخصص اليومي.","الإقامة في الفنادق بحد أقصى 5 ليالي.","المواصلات العامة.","الرسوم ذات الصلة بالتأشيرات."]},
       {k:"doc_price",l:"مستندات عروض الأسعار",t:"file",req:true},
+      {k:"doc_detailed_offer",l:"العرض المفصل",t:"file",req:true},
+      {k:"doc_invitation",l:"خطاب الدعوة الرسمية بين الجهتين",t:"file",req:true},
       {k:"doc_extra",l:"مرفقات إضافية",t:"file",req:false}
     ]
   },
@@ -2445,7 +2459,8 @@ const ICONS={
   cap:'<path d="m2 9 10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5M22 9v6"/>',
   megaphone:'<path d="M3 10v4h4l7 5V5L7 10z"/><path d="M18 9a4 4 0 0 1 0 6"/>',
   star:'<path d="m12 3 2.8 5.8 6.2.9-4.5 4.4 1 6.2L12 17.4 6.5 20.3l1-6.2L3 9.7l6.2-.9z"/>',
-  zap:'<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>'
+  zap:'<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
+  refresh:'<path d="M20 11a8 8 0 0 0-14.9-3.5M4 4v4h4"/><path d="M4 13a8 8 0 0 0 14.9 3.5M20 20v-4h-4"/>'
 };
 function ico(n){ return ICONS[n]?'<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">'+ICONS[n]+'</svg>':""; }
 const SVC_ICON={buyer_visit:"handshake",consulting:"briefcase",exhibition:"globe",legal:"scale",ecommerce:"cart",product_reg:"award",lang_support:"chat",customization:"wrench",training:"cap",marketing:"megaphone",exceptional:"star"};
@@ -2461,6 +2476,28 @@ function applyLineIcons(){
   document.querySelectorAll(".hf-ic").forEach(el=>{ const n=hf[el.textContent.trim()]; if(n) el.innerHTML=ico(n); });
 }
 document.addEventListener("DOMContentLoaded",applyLineIcons);
+/* زر تحديث في كل صفحة: يجلب أحدث البيانات من الشيت ويعيد رسم الصفحة الحالية فقط */
+function refreshBtnHTML(where){ return `<button type="button" class="refresh-btn" title="تحديث البيانات" onclick="refreshPage(this,'${where}')">${ico("refresh")}<span>تحديث</span></button>`; }
+function addRefreshButtons(){
+  document.querySelectorAll(".page").forEach(pg=>{
+    const head=pg.querySelector(":scope>.page-head:first-child"); if(!head||head.querySelector(".refresh-btn")) return;
+    head.insertAdjacentHTML("beforeend",refreshBtnHTML(pg.id.replace("page-","")));
+  });
+  const close=document.querySelector('#dashboardScreen .dash-top button[onclick*="closeDashboard"]');
+  if(close&&!document.querySelector("#dashboardScreen .refresh-btn")) close.insertAdjacentHTML("beforebegin",refreshBtnHTML("dash"));
+}
+function refreshPage(btn,where){
+  if(btn.classList.contains("spin")) return;
+  btn.classList.add("spin");
+  if(where==="users"&&typeof renderUsers==="function") renderUsers();
+  fetchFromSheet((res)=>{
+    btn.classList.remove("spin");
+    if(where==="dash") renderDashboard();
+    if(SHEET_API.includes("PUT_YOUR")||(res&&res.ok)) toast("✓ تم تحديث البيانات","ok");
+    else toast("⚠️ تعذّر التحديث، تحقق من الاتصال","err");
+  });
+}
+document.addEventListener("DOMContentLoaded",addRefreshButtons);
 
 /* ============================================================
    حالة التطبيق
@@ -3198,7 +3235,7 @@ function renderHome(){
 function fieldHTML(f){
   const req=f.req?'<span class="req">*</span>':'';
   let input="";
-  if(f.t==="textarea") input=`<textarea id="fld_${f.k}" placeholder="${f.l}"></textarea>`;
+  if(f.t==="textarea") input=`<textarea id="fld_${f.k}" placeholder="${f.l}"${f.max?` maxlength="${f.max}"`:""}></textarea>`;
   else if(f.t==="checkboxes"){
     // اختيار متعدد مع خيار "الكل" يحدد الجميع
     const items=f.opts.map(o=>`
@@ -6359,9 +6396,10 @@ function refreshViews(){
     const ds=document.getElementById("dashboardScreen"); if(ds&&ds.classList.contains("show")) renderDashboard();
   }catch(e){ console.error(e); }
 }
-let _fetching=false, _fetchAgain=false, _lastFetch=0;
+let _fetching=false, _fetchAgain=false, _lastFetch=0, _fetchCbs=[];
 function fetchFromSheet(done){
   if(SHEET_API.includes("PUT_YOUR")){ if(done)done(); return; }
+  if(typeof done==="function") _fetchCbs.push(done);
   if(_fetching){ _fetchAgain=true; return; }
   _fetching=true; _lastFetch=Date.now();
   jsonp("list",{},(res)=>{
@@ -6371,7 +6409,8 @@ function fetchFromSheet(done){
       saveRequests();
       refreshViews();
     }
-    if(done) try{done(res);}catch(e){}
+    const cbs=_fetchCbs; _fetchCbs=[];
+    cbs.forEach(f=>{ try{f(res);}catch(e){console.error(e);} });
     if(_fetchAgain){ _fetchAgain=false; setTimeout(fetchFromSheet,300); }
   });
 }
